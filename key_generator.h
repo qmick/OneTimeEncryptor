@@ -3,14 +3,12 @@
 
 #include "secure_memory.h"
 
-class EVP_PKEY;
 
-class key_generator
+class KeyGenerator
 {
 public:
-    key_generator();
-    static shared_ptr<EVP_PKEY> get_key_pair();
-    static shared_ptr<byte> get_secret(shared_ptr<EVP_PKEY> pkey, shared_ptr<EVP_PKEY> peerkey, shared_ptr<size_t> secret_len);
+    static EVP_PKEY_free_ptr get_key_pair();
+    static SecureBuffer get_secret(const EVP_PKEY_free_ptr &pkey, const EVP_PKEY_free_ptr &peerkey);
 };
 
 #endif // KEY_GENERATOR_H

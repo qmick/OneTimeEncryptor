@@ -2,18 +2,17 @@
 #define FILE_CRYPTOR_H
 
 #include "secure_memory.h"
-#include <QString>
 
-class EVP_PKEY;
 
 class Encryptor
 {
 public:
     explicit Encryptor(const secure_string &master_pubkey_str);
+    long encrypt_file(const std::string &filename);
 
 private:
-    EVP_PKEY *master_key;
-    size_t encrypt_file(const QString &filename);
+    EVP_PKEY_free_ptr master_key;
+
 };
 
 #endif // FILE_CRYPTOR_H

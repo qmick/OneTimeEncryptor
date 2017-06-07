@@ -8,13 +8,13 @@
 class Cryptor
 {
 public:
-    Cryptor(shared_ptr<byte> secret, int secret_len);
-    int file_encrypt(FILE *dst, FILE *src);
-    int file_edecrypt(FILE *dst, FILE *src);
+    explicit Cryptor(SecureBuffer &secret);
+    long encrypt_file(FILE *dst, FILE *src);
+    long decrypt_file(FILE *dst, FILE *src);
 
 private:
-    shared_ptr<byte> key;
-    shared_ptr<byte> iv;
+    SecureBuffer key;
+    SecureBuffer iv;
 };
 
 #endif // CRYPTOR_H
