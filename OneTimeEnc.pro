@@ -47,4 +47,6 @@ FORMS += \
 
 INCLUDEPATH += C:/OpenSSL-Win32/include
 
-LIBS += -LC:/OpenSSL-Win32/lib/VC/static -lcrypto32MDd -lcrypto32MD -lssl32MD -lssl32MDd
+LIBS += -LC:/OpenSSL-Win32/lib/VC
+Release:LIBS += libcrypto32MD.lib libssl32MD.lib
+Debug:LIBS += libcrypto32MDd.lib libssl32MDd.lib

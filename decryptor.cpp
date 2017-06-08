@@ -29,7 +29,6 @@ long Decryptor::decrypt_file(const std::string &filename)
 {
     std::string decrypted_filename = filename.substr(0, filename.length() - crypt_sign.length());
     EVP_PKEY_free_ptr pub_key;
-    size_t secret_len;
     SecureBuffer secret;
     EVP_CIPHER_CTX_free_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
     shared_ptr<FILE> cipher_fp, decrypted_fp;
@@ -54,7 +53,7 @@ long Decryptor::decrypt_file(const std::string &filename)
     Cryptor cryptor(secret);
 
     //Print for debugging
-    for (int i = 0; i < secret_len; i++)
+    for (int i = 0; i < secret.size(); i++)
         printf("0x%x ", secret[i]);
     printf("\n\n");
 

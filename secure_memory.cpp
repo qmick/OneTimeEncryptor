@@ -12,6 +12,20 @@ SecureBuffer::SecureBuffer(size_t n)
     buffer = new byte[n];
 }
 
+SecureBuffer::SecureBuffer(const byte *other, size_t n)
+    : n(n)
+{
+    buffer = new byte[n];
+    memmove_s(buffer, n, other, n);
+}
+
+SecureBuffer::SecureBuffer(const std::string &str)
+    : n(str.size())
+{
+    buffer = new byte[n];
+    memmove_s(buffer, n, str.c_str(), n);
+}
+
 SecureBuffer::SecureBuffer(SecureBuffer &&other) noexcept
     : n(other.n), buffer(other.buffer)
 {

@@ -1,5 +1,4 @@
 #include "crypto_exception.h"
-
 #include <openssl/err.h>
 
 CryptoException::CryptoException()

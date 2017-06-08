@@ -80,6 +80,8 @@ class SecureBuffer
 public:
     SecureBuffer();
     explicit SecureBuffer(size_t n);
+    SecureBuffer(const byte *other, size_t n);
+    SecureBuffer(const std::string &str);
     SecureBuffer(SecureBuffer &&other) noexcept;
     ~SecureBuffer();
     SecureBuffer &operator=(const SecureBuffer &other) = delete;
