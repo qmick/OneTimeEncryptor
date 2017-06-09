@@ -29,18 +29,22 @@ SOURCES += \
     key_generator.cpp \
     decryptor.cpp \
     encryptor.cpp \
-    cryptor.cpp \
     crypto_exception.cpp \
-    secure_memory.cpp
+    secure_memory.cpp \
+    symmetric_cryptor.cpp \
+    crypt_thread.cpp \
+    asymmetric_cryptor.cpp
 
 HEADERS += \
         mainwindow.h \
     key_generator.h \
     decryptor.h \
     encryptor.h \
-    cryptor.h \
     secure_memory.h \
-    crypto_exception.h
+    crypto_exception.h \
+    symmetric_cryptor.h \
+    asymmetric_cryptor.h \
+    crypt_thread.h
 
 FORMS += \
         mainwindow.ui

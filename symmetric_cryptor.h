@@ -3,14 +3,17 @@
 
 #include "secure_memory.h"
 #include <cstdio>
+#include <functional>
 
-
-class Cryptor
+class SymmetricCryptor
 {
 public:
-    explicit Cryptor(SecureBuffer &secret);
-    long encrypt_file(FILE *dst, FILE *src);
-    long decrypt_file(FILE *dst, FILE *src);
+    static const auto kMaxInBufferSize = 1024 * 1024;
+    static const auto kMaxOutBufferSize = kMaxInBufferSize + 1024;
+
+    explicit SymmetricCryptor(SecureBuffer &secret);
+    long long encrypt_file(FILE *dst, FILE *src, std::function<bool(long long)> callback);
+    long long decrypt_file(FILE *dst, FILE *src, std::function<bool(long long)> callback);
 
 private:
     SecureBuffer key;

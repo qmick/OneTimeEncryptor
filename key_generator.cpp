@@ -6,8 +6,6 @@
 #include <openssl/pem.h>
 
 
-
-
 EVP_PKEY_free_ptr KeyGenerator::get_key_pair()
 {
     EVP_PKEY_free_ptr key_pair, params;
@@ -21,7 +19,7 @@ EVP_PKEY_free_ptr KeyGenerator::get_key_pair()
         throw CryptoException();
 
     /* We're going to use the ANSI X9.62 Prime 256v1 curve */
-    if (1 != EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx.get(), NID_X25519))
+    if (1 != EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx.get(), NID_X9_62_prime256v1))
         throw CryptoException();
 
     /* Create the parameter object params */
@@ -44,7 +42,8 @@ EVP_PKEY_free_ptr KeyGenerator::get_key_pair()
     return key_pair;
 }
 
-SecureBuffer KeyGenerator::get_secret(const EVP_PKEY_free_ptr pkey, const EVP_PKEY_free_ptr peerkey)
+SecureBuffer KeyGenerator::get_secret(const EVP_PKEY_free_ptr pkey,
+                                      const EVP_PKEY_free_ptr peerkey)
 {
     EVP_PKEY_CTX_free_ptr ctx;
     SecureBuffer secret;
@@ -76,7 +75,8 @@ SecureBuffer KeyGenerator::get_secret(const EVP_PKEY_free_ptr pkey, const EVP_PK
     return secret;
 }
 
-bool KeyGenerator::save_key_pair(FILE *dst_public, FILE *dst_private, const EVP_PKEY_free_ptr key_pair, SecureBuffer &password)
+bool KeyGenerator::save_key_pair(FILE *dst_public, FILE *dst_private,
+                                 const EVP_PKEY_free_ptr key_pair, SecureBuffer &password)
 {
     if (!PEM_write_PrivateKey(dst_private, key_pair.get(), EVP_aes_128_cbc(), password.get(),
                               static_cast<int>(password.size()), NULL, NULL))
@@ -84,6 +84,7 @@ bool KeyGenerator::save_key_pair(FILE *dst_public, FILE *dst_private, const EVP_
 
     if (!PEM_write_PUBKEY(dst_public, key_pair.get()))
         throw CryptoException();
+
     return true;
 }
 

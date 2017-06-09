@@ -3,9 +3,9 @@
 
 CryptoException::CryptoException()
 {
-    what_str = std::make_shared<char>(kMaxErrorStringLen);
+    what_str = std::shared_ptr<char>(new char[kMaxErrorStringLen], std::default_delete<char[]>());
     auto e = ERR_get_error();
-    if (e == 0)
+    if (!e)
         return;
 
     ERR_error_string(e, what_str.get());

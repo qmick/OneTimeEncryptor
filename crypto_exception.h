@@ -7,7 +7,7 @@
 class CryptoException : public std::exception
 {
 public:
-    static const int kMaxErrorStringLen = 120;
+    static const int kMaxErrorStringLen = 256;
     explicit CryptoException();
     virtual const char* what() const noexcept;
 

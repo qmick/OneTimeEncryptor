@@ -1,6 +1,7 @@
 #include "encryptor.h"
-#include "cryptor.h"
+#include "symmetric_cryptor.h"
 #include "key_generator.h"
+#include "crypto_exception.h"
 #include <openssl/conf.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
@@ -13,55 +14,84 @@ using std::shared_ptr;
 using std::runtime_error;
 static const string crypt_sign = "[encrypted]";
 
-Encryptor::Encryptor(const secure_string &master_pubkey_str)
+Encryptor::Encryptor(const string &master_pubkey_pem)
 {
-    BIO *bufio;
-    bufio = BIO_new_mem_buf(static_cast<const void*>(master_pubkey_str.c_str()),
-                            static_cast<int>(master_pubkey_str.size()));
-    master_key = EVP_PKEY_free_ptr(PEM_read_bio_PUBKEY(bufio, NULL, NULL, NULL), ::EVP_PKEY_free);
-    BIO_set_close(bufio, BIO_CLOSE);
-    BIO_free(bufio);
+    shared_ptr<FILE> pubkey_fp;
+
+    //Open pem file that contains master private ec key
+    FILE *tmp;
+    if (fopen_s(&tmp, master_pubkey_pem.c_str(), "r") != 0)
+        throw runtime_error("cannot open private key file");
+    pubkey_fp = shared_ptr<FILE>(tmp, ::fclose);
+
+    //Read master private key from file
+    auto ret = PEM_read_PUBKEY(pubkey_fp.get(), NULL, NULL, NULL);
+    if (ret == NULL)
+        throw CryptoException();
+    master_key = EVP_PKEY_free_ptr(ret, ::EVP_PKEY_free);
+}
+
+Encryptor::~Encryptor()
+{
+
 }
 
 
-long Encryptor::encrypt_file(const string &filename)
+long long Encryptor::crypt_file(const string &filename, std::function<bool(long long)> callback)
 {
     EVP_CIPHER_CTX_free_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
-    shared_ptr<FILE> rfp = nullptr, wfp = nullptr;
-    string encrypted_filename = filename + crypt_sign;
-    long ciphertext_len = 0;
+    FILE *plain_fp = NULL, *cipher_fp = NULL;
+    string cipher_filename = filename + crypt_sign;
+    long long ciphertext_len = 0;
 
     //ECDH
     auto key_pair = KeyGenerator::get_key_pair();
     auto secret = KeyGenerator::get_secret(key_pair, master_key);
-    Cryptor cryptor(secret);
-
-    //Print for debugging
-    for (int i = 0; i < secret.size(); i++)
-        printf("0x%x ", secret[i]);
-    printf("\n\n");
+    SymmetricCryptor cryptor(secret);
 
     //Open source file for reading
-    FILE *tmp;
-    if (fopen_s(&tmp, filename.c_str(), "rb") != 0)
+    if (fopen_s(&plain_fp, filename.c_str(), "rb") != 0)
         throw runtime_error(filename + ": cannot be opened.\n");
-    rfp = shared_ptr<FILE>(tmp, ::fclose);
 
     //If dst file exist, remove it
-    remove(encrypted_filename.c_str());
+    remove(cipher_filename.c_str());
 
     //Open dst file for writing
-    if (fopen_s(&tmp, encrypted_filename.c_str(), "ab") != 0)
-        throw runtime_error(encrypted_filename + "%s cannot be opened");
-    wfp = shared_ptr<FILE>(tmp, ::fclose);
-
-    if (!PEM_write_PUBKEY(wfp.get(), key_pair.get()))
+    if (fopen_s(&cipher_fp, cipher_filename.c_str(), "ab") != 0)
     {
-        remove(encrypted_filename.c_str());
-        throw runtime_error(encrypted_filename + ": error writing pubkey");
+        fclose(plain_fp);
+        throw runtime_error(cipher_filename + "%s cannot be opened");
     }
 
-    ciphertext_len = cryptor.encrypt_file(wfp.get(), rfp.get());
+    if (!PEM_write_PUBKEY(cipher_fp, key_pair.get()))
+    {
+        fclose(plain_fp);
+        fclose(cipher_fp);
+        remove(cipher_filename.c_str());
+        throw runtime_error(cipher_filename + ": error writing pubkey");
+    }
+
+    try
+    {
+        ciphertext_len = cryptor.encrypt_file(cipher_fp, plain_fp, callback);
+        if (ciphertext_len < 0)
+        {
+            fclose(cipher_fp);
+            cipher_fp = NULL;
+            remove(cipher_filename.c_str());
+        }
+    }
+    catch (std::exception &e)
+    {
+        fclose(plain_fp);
+        fclose(cipher_fp);
+        remove(cipher_filename.c_str());
+        throw e;
+    }
+
+    fclose(plain_fp);
+    if (cipher_fp)
+        fclose(cipher_fp);
 
     return ciphertext_len;
 }

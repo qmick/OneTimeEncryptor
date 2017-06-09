@@ -7,13 +7,108 @@
     <x>0</x>
     <y>0</y>
     <width>400</width>
-    <height>300</height>
+    <height>305</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
-  <widget class="QWidget" name="centralWidget"/>
+  <widget class="QWidget" name="centralWidget">
+   <widget class="QLabel" name="public_label">
+    <property name="geometry">
+     <rect>
+      <x>50</x>
+      <y>40</y>
+      <width>261</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Public key not loaded</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="private_label">
+    <property name="geometry">
+     <rect>
+      <x>50</x>
+      <y>80</y>
+      <width>271</width>
+      <height>16</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Private key not loaded</string>
+    </property>
+   </widget>
+   <widget class="QProgressBar" name="progressBar">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>200</y>
+      <width>281</width>
+      <height>23</height>
+     </rect>
+    </property>
+    <property name="value">
+     <number>0</number>
+    </property>
+   </widget>
+   <widget class="QLabel" name="filename_label">
+    <property name="geometry">
+     <rect>
+      <x>30</x>
+      <y>120</y>
+      <width>341</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QLabel" name="reason_label">
+    <property name="geometry">
+     <rect>
+      <x>30</x>
+      <y>160</y>
+      <width>341</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+   </widget>
+   <widget class="QLabel" name="time_label">
+    <property name="geometry">
+     <rect>
+      <x>260</x>
+      <y>40</y>
+      <width>101</width>
+      <height>51</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>00:00:00</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="stop_button">
+    <property name="enabled">
+     <bool>false</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>310</x>
+      <y>200</y>
+      <width>80</width>
+      <height>20</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Stop</string>
+    </property>
+   </widget>
+  </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
     <rect>
@@ -29,7 +124,6 @@
     </property>
     <addaction name="action_Encrypt"/>
     <addaction name="action_Decrypt"/>
-    <addaction name="action_Generate_Key"/>
     <addaction name="separator"/>
     <addaction name="actionE_xit"/>
    </widget>
@@ -38,7 +132,16 @@
      <string>&amp;About</string>
     </property>
    </widget>
+   <widget class="QMenu" name="menuKey">
+    <property name="title">
+     <string>&amp;Key</string>
+    </property>
+    <addaction name="action_Generate_Key"/>
+    <addaction name="actionLoad_private_key"/>
+    <addaction name="actionLoad_public_key"/>
+   </widget>
    <addaction name="menu_File"/>
+   <addaction name="menuKey"/>
    <addaction name="menu_About"/>
   </widget>
   <widget class="QToolBar" name="mainToolBar">
@@ -57,7 +160,7 @@
   </action>
   <action name="action_Generate_Key">
    <property name="text">
-    <string>&amp;Generate Key</string>
+    <string>&amp;Generate key</string>
    </property>
   </action>
   <action name="actionE_xit">
@@ -68,6 +171,16 @@
   <action name="action_Decrypt">
    <property name="text">
     <string>&amp;Decrypt</string>
+   </property>
+  </action>
+  <action name="actionLoad_private_key">
+   <property name="text">
+    <string>Load p&amp;rivate key</string>
+   </property>
+  </action>
+  <action name="actionLoad_public_key">
+   <property name="text">
+    <string>Load p&amp;ublic key</string>
    </property>
   </action>
  </widget>

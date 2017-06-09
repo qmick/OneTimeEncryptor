@@ -20,10 +20,11 @@ SecureBuffer::SecureBuffer(const byte *other, size_t n)
 }
 
 SecureBuffer::SecureBuffer(const std::string &str)
-    : n(str.size())
+    : n(str.size() + 1)
 {
     buffer = new byte[n];
     memmove_s(buffer, n, str.c_str(), n);
+    buffer[n - 1] = '\0';
 }
 
 SecureBuffer::SecureBuffer(SecureBuffer &&other) noexcept
@@ -60,6 +61,11 @@ const byte &SecureBuffer::operator[](size_t n) const
 }
 
 byte* SecureBuffer::get()
+{
+    return buffer;
+}
+
+const byte *SecureBuffer::get() const
 {
     return buffer;
 }

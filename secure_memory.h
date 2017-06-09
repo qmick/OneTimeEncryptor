@@ -89,6 +89,7 @@ public:
     byte &operator[](size_t n);
     const byte &operator[](size_t n) const;
     byte* get();
+    const byte* get() const;
     size_t size();
 
 private:
