@@ -9,6 +9,9 @@ SymmetricCryptor::SymmetricCryptor(SecureBuffer &secret)
 {
     key = SecureBuffer(EVP_MAX_KEY_LENGTH);
     iv = SecureBuffer(EVP_MAX_IV_LENGTH);
+
+    //Derive aes key from secret. EVP_ByteTokey() is used to derive key from password,
+    //the security of using it on secret is not clear
     if (0 == EVP_BytesToKey(EVP_aes_256_cbc(), EVP_sha256(), NULL, secret.get(),
                             static_cast<int>(secret.size()), 1, key.get(), iv.get()))
         throw CryptoException();
@@ -17,10 +20,18 @@ SymmetricCryptor::SymmetricCryptor(SecureBuffer &secret)
 
 long long SymmetricCryptor::encrypt_file(FILE *dst, FILE *src, std::function<bool(long long)> callback)
 {
+    //Buffer to place read data
     auto in_buf = SecureBuffer(kMaxInBufferSize);
+
+    //Buffer to place data to be written
     auto out_buf = SecureBuffer(kMaxOutBufferSize);
+
+    //Total data length write
     long long cipher_len = 0;
+
+    //Data length of 1 update cycle
     int block_len = 0;
+
     EVP_CIPHER_CTX_free_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
 
     /* Initialise the encryption operation. IMPORTANT - ensure you use a key
@@ -31,9 +42,10 @@ long long SymmetricCryptor::encrypt_file(FILE *dst, FILE *src, std::function<boo
     if (1 != EVP_EncryptInit_ex(ctx.get(), EVP_aes_256_cbc(), NULL, key.get(), iv.get()))
         throw CryptoException();
 
+    //Work until EOF
     while (!feof(src))
     {
-
+        //Read kMaxInBufferSize data for src file
         auto plain_len = fread(in_buf.get(), 1, kMaxInBufferSize, src);
         if (ferror(src))
             throw runtime_error("cannot read from file");
@@ -43,16 +55,23 @@ long long SymmetricCryptor::encrypt_file(FILE *dst, FILE *src, std::function<boo
         */
         if (1 != EVP_EncryptUpdate(ctx.get(), out_buf.get(), &block_len, in_buf.get(), static_cast<int>(plain_len)))
             throw CryptoException();
+
+        //Write encrypted data to file
         fwrite(out_buf.get(), 1, static_cast<unsigned int>(block_len), dst);
         if (ferror(dst))
             throw runtime_error("cannot write file");
         cipher_len += block_len;
+
+        //If asked to stop, then stop and return
         if (!callback(cipher_len))
             return -1;
     }
 
+    //Finalize this encryption
     if (1 != EVP_EncryptFinal_ex(ctx.get(), out_buf.get(), &block_len))
         throw CryptoException();
+
+    //Something still need to be written
     if (block_len > 0)
     {
         fwrite(out_buf.get(), 1, static_cast<unsigned int>(block_len), dst);
@@ -60,12 +79,15 @@ long long SymmetricCryptor::encrypt_file(FILE *dst, FILE *src, std::function<boo
             throw runtime_error("cannot write file");
         cipher_len += block_len;
     }
+
     if (!callback(cipher_len))
         return -1;
 
     return cipher_len;
 }
 
+
+//Almost the same as encryption
 long long SymmetricCryptor::decrypt_file(FILE *dst, FILE *src, function<bool(long long)> callback)
 {
     auto in_buf = SecureBuffer(kMaxInBufferSize);

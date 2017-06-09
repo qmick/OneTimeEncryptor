@@ -78,7 +78,7 @@ SecureBuffer KeyGenerator::get_secret(const EVP_PKEY_free_ptr pkey,
 bool KeyGenerator::save_key_pair(FILE *dst_public, FILE *dst_private,
                                  const EVP_PKEY_free_ptr key_pair, SecureBuffer &password)
 {
-    if (!PEM_write_PrivateKey(dst_private, key_pair.get(), EVP_aes_128_cbc(), password.get(),
+    if (!PEM_write_PrivateKey(dst_private, key_pair.get(), EVP_aes_256_cbc(), password.get(),
                               static_cast<int>(password.size()), NULL, NULL))
         throw CryptoException();
 

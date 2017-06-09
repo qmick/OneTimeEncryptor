@@ -36,16 +36,18 @@ void CryptThread::run() {
         if (f.exists() && f.isFile() && f.size() > 0)
         {
             emit current_file(i);
+
+            //Callback that used to recieve progress and send stop signal
             std::function<bool(long long)> cb = [&](long long bytes) {
                 double total = static_cast<double>(f.size());
                 double current  = static_cast<double>(bytes);
                 emit current_progress(static_cast<int>(current / total * 1000.0));
-                if (should_stop)
-                    qDebug()<<should_stop;
                 return !should_stop;
             };
+
             try
             {
+                //If stop manually
                 if (cryptor->crypt_file(i.toStdString(), cb) < 0)
                     break;
                 count++;

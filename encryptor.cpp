@@ -63,6 +63,7 @@ long long Encryptor::crypt_file(const string &filename, std::function<bool(long 
         throw runtime_error(cipher_filename + "%s cannot be opened");
     }
 
+    //Write session publick key to file header
     if (!PEM_write_PUBKEY(cipher_fp, key_pair.get()))
     {
         fclose(plain_fp);
@@ -74,6 +75,8 @@ long long Encryptor::crypt_file(const string &filename, std::function<bool(long 
     try
     {
         ciphertext_len = cryptor.encrypt_file(cipher_fp, plain_fp, callback);
+
+        //Stop manually, remove incomplete encrypted file
         if (ciphertext_len < 0)
         {
             fclose(cipher_fp);

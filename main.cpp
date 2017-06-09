@@ -6,6 +6,8 @@ int main(int argc, char *argv[])
     QApplication a(argc, argv);
     MainWindow::Mode m = MainWindow::ALL;
     QStringList files;
+
+    //./OneTimeEnc [enc|dec|all] file1 file2...
     if (argc > 1)
     {
         QString arg = argv[1];
@@ -18,6 +20,7 @@ int main(int argc, char *argv[])
         else
             return -1;
 
+        //Get file(s)
         if (argc > 2)
         {
             for (int i = 2; i < argc; i++)

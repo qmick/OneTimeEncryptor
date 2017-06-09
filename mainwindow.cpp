@@ -25,18 +25,21 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
     public_path = "./public.pem";
     private_path = "./private.pem";
 
-    connect(&timer, SIGNAL(timeout()), this, SLOT(update_time()));
-    connect(ui->action_Generate_Key, SIGNAL(triggered()), this, SLOT(generate_key_clicked()));
-    connect(ui->action_Encrypt, SIGNAL(triggered()), this, SLOT(encrypt_clicked()));
-    connect(ui->action_Decrypt, SIGNAL(triggered()), this, SLOT(decrypt_clicked()));
-    connect(ui->stop_button, SIGNAL(clicked()), this, SLOT(stop_job()));
+    connect(&timer,                     SIGNAL(timeout()),   this, SLOT(update_time()));
+    connect(ui->action_Generate_Key,    SIGNAL(triggered()), this, SLOT(generate_key_clicked()));
+    connect(ui->action_Encrypt,         SIGNAL(triggered()), this, SLOT(encrypt_clicked()));
+    connect(ui->action_Decrypt,         SIGNAL(triggered()), this, SLOT(decrypt_clicked()));
+    connect(ui->stop_button,            SIGNAL(clicked()),   this, SLOT(stop_job()));
     connect(ui->actionLoad_private_key, SIGNAL(triggered()), this, SLOT(load_privatekey()));
-    connect(ui->actionLoad_public_key, SIGNAL(triggered()), this, SLOT(load_publickey()));
+    connect(ui->actionLoad_public_key,  SIGNAL(triggered()), this, SLOT(load_publickey()));
 
     switch (mode)
     {
+    //Open for encryption
     case ENCRYPTION:
         load_publickey();
+
+        //If command line args contains filenames, encrypt them automatically
         if (!files.isEmpty())
         {
             crypt_thread = std::make_shared<CryptThread>(encryptor, files);
@@ -45,8 +48,11 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
         }
         break;
 
+    //Open for decryption
     case DECRYPTION:
         load_privatekey();
+
+        //If command line args contains filenames, decrypt them automatically
         if (!files.isEmpty())
         {
             crypt_thread = std::make_shared<CryptThread>(decryptor, files);
@@ -55,6 +61,7 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
         }
         break;
 
+    //Open for both
     case ALL:
         load_publickey();
         load_privatekey();
@@ -70,15 +77,21 @@ MainWindow::~MainWindow()
 
 void MainWindow::setup_thread()
 {
-    connect(crypt_thread.get(), SIGNAL(current_file(const QString&)), this, SLOT(current_file(const QString&)));
+    connect(crypt_thread.get(), SIGNAL(current_file(const QString&)),
+            this, SLOT(current_file(const QString&)));
     connect(crypt_thread.get(), SIGNAL(file_failed(const QString&, const QString&)),
             this, SLOT(file_failed(const QString&, const QString&)));
-    connect(crypt_thread.get(), SIGNAL(current_progress(int)), this, SLOT(current_progress(int)));
+    connect(crypt_thread.get(), SIGNAL(current_progress(int)),
+            this, SLOT(current_progress(int)));
     connect(crypt_thread.get(), SIGNAL(job_finished()), this, SLOT(job_finished()));
     crypt_thread->start();
+
+    //Setup timer
     timer.start(1000);
     time_record.setHMS(0, 0, 0);
     ui->time_label->setText(time_record.toString());
+
+    //Initialize processed file(s) counter
     count = 0;
 }
 
@@ -144,6 +157,7 @@ void MainWindow::generate_key_clicked()
     {
         FILE *private_fp = NULL, *public_fp = NULL;
 
+        //Open file for writing pem private key
         if (fopen_s(&private_fp, private_path.toStdString().c_str(), "w") != 0)
         {
             char buf[256];
@@ -154,6 +168,7 @@ void MainWindow::generate_key_clicked()
             return;
         }
 
+        //Open file for writing pem public key
         if (fopen_s(&public_fp, public_path.toStdString().c_str(), "w") != 0)
         {
             fclose(private_fp);
@@ -171,6 +186,7 @@ void MainWindow::generate_key_clicked()
             auto key_pair = KeyGenerator::get_key_pair();
             KeyGenerator::save_key_pair(public_fp, private_fp, key_pair, password);
 
+            //Do some clean
             fclose(private_fp);
             private_fp = NULL;
             fclose(public_fp);
@@ -185,14 +201,18 @@ void MainWindow::generate_key_clicked()
                 fclose(private_fp);
             if (public_fp)
                 fclose(public_fp);
+
+            //Remove generated files
             remove(public_path.toStdString().c_str());
             remove(private_path.toStdString().c_str());
+
             QMessageBox::critical(this, tr("Error"),
                                   tr("Cannot generate key: ") + e.what(),
                                   QMessageBox::Abort);
             return;
         }
 
+        //Update UI
         ui->private_label->setText(tr("Private key loaded"));
         ui->public_label->setText(tr("Public key loaded"));
     }

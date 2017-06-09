@@ -70,7 +70,7 @@ const byte *SecureBuffer::get() const
     return buffer;
 }
 
-size_t SecureBuffer::size()
+size_t SecureBuffer::size() const
 {
     return n;
 }
