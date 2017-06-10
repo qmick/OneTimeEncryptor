@@ -10,7 +10,7 @@ public:
     virtual ~AsymmetricCryptor();
 
     /**
-     * @brief crypt_file Function that encrypt/decrypt file(s)
+     * @brief Function that encrypt/decrypt file(s)
      * @param filename File(s) to be processed
      * @param callback Callback that used to send progress and recieve stop signal
      * @return

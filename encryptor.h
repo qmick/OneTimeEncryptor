@@ -13,7 +13,7 @@ public:
      */
     explicit Encryptor(const std::string &master_pubkey_pem);
 
-    ~Encryptor();
+    ~Encryptor() override;
 
     /**
      * @brief Encrypt file using ECDH and AES
@@ -21,7 +21,7 @@ public:
      * @param Callback used to send progress and recieve stop signal
      * @return callback Encrypted data size, -1 if stop by callback
      */
-    long long crypt_file(const std::string &filename, std::function<bool(long long)> callback);
+    long long crypt_file(const std::string &filename, std::function<bool(long long)> callback) override;
 
 private:
     //Master public key

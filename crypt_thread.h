@@ -23,7 +23,9 @@ protected:
 signals:
     void current_file(const QString &s);
     void file_failed(const QString &file, const QString &reason);
-    void current_progress(int progress);
+    void file_stopped(const QString &file);
+    void current_progress(const QString &file, int progress);
+    void current_finished(const QString &s);
     void job_finished();
 
 private:

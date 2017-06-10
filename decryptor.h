@@ -14,7 +14,7 @@ public:
      */
     Decryptor(const std::string &master_prikey_pem, SecureBuffer &password);
 
-    ~Decryptor();
+    ~Decryptor() override;
 
     /**
      * @brief Decrypt file using ECDH and AES
@@ -22,7 +22,7 @@ public:
      * @param callback Callback used to send progress and recieve stop signal
      * @return Decrypted data size, -1 if stop by callback
      */
-    long long crypt_file(const std::string &filename, std::function<bool(long long)> callback);
+    long long crypt_file(const std::string &filename, std::function<bool(long long)> callback) override;
 
 private:
     //Master private key

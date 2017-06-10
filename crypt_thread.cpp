@@ -39,9 +39,10 @@ void CryptThread::run() {
 
             //Callback that used to recieve progress and send stop signal
             std::function<bool(long long)> cb = [&](long long bytes) {
-                double total = static_cast<double>(f.size());
-                double current  = static_cast<double>(bytes);
-                emit current_progress(static_cast<int>(current / total * 1000.0));
+                auto total = static_cast<double>(f.size());
+                auto current  = static_cast<double>(bytes);
+                auto progress = static_cast<int>(current / total * 100.0);
+                emit current_progress(i, progress);
                 return !should_stop;
             };
 
@@ -49,13 +50,18 @@ void CryptThread::run() {
             {
                 //If stop manually
                 if (cryptor->crypt_file(i.toStdString(), cb) < 0)
+                {
+                    emit file_stopped(i);
                     break;
+                }
                 count++;
             }
             catch (std::exception &e)
             {
                 emit file_failed(i, QString(e.what()));
             }
+
+            emit current_finished(i);
         }
     }
     emit job_finished();

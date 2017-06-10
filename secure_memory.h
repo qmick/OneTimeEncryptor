@@ -17,7 +17,7 @@ using EVP_PKEY_CTX_free_ptr = shared_ptr<EVP_PKEY_CTX>;
 
 /**
  * @brief The SecureBuffer class is a buffer that used to place secret information
- * and will be erased using OPENSSL_cleanse() before being free
+ *        and will be erased using OPENSSL_cleanse() before being free
  */
 class SecureBuffer
 {
@@ -37,8 +37,8 @@ public:
     byte* get();
     const byte* get() const;
 
-    //Buffer size
-    size_t size();
+    //Get buffer size
+    size_t size() const;
 
 private:
     size_t n;

@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <QTimer>
 #include <QTime>
+#include <QLabel>
 #include <memory>
 
 namespace Ui {
@@ -13,6 +14,8 @@ class MainWindow;
 class Encryptor;
 class Decryptor;
 class CryptThread;
+class ProgressDelegate;
+class ProgressTableModel;
 
 class MainWindow : public QMainWindow
 {
@@ -45,6 +48,14 @@ private:
     QTime time_record;
     int count;
 
+    //UI
+    ProgressDelegate *progress_delegate;
+    ProgressTableModel *progress_model;
+    QLabel *public_label;
+    QLabel *private_label;
+
+    //Find place of file progress by its name
+    QHash<QString, int> file_no;
     /**
      * @brief setup_thread Setup working thread for encryption or decryption
      */
@@ -68,13 +79,19 @@ public slots:
     void decrypt_clicked();
 
     //Get filename that being processed currently
-    void current_file(const QString &s);
+    void current_file(const QString &file);
 
     //Get file that fail to encrypt/decrypt and reason
     void file_failed(const QString &file, const QString &reason);
 
+    //Encryption/Decryption is stopped manually
+    void file_stopped(const QString &file);
+
     //Get asymmetric encryption/decryption progress
-    void current_progress(int progress);
+    void current_progress(const QString &file, int progress);
+
+    //Current finished file
+    void current_finished(const QString &file);
 
     //All file(s) are processed
     void job_finished();

@@ -5,6 +5,8 @@
 #include "ui_mainwindow.h"
 #include "key_generator.h"
 #include "crypto_exception.h"
+#include "progress_delegate.h"
+#include "progress_tablemodel.h"
 
 #include <QFileDialog>
 #include <QInputDialog>
@@ -14,13 +16,40 @@
 #include <QDebug>
 
 
+QString size_human(qint64 size)
+{
+    double num = size;
+    QStringList list;
+    list << "KB" << "MB" << "GB" << "TB";
+
+    QStringListIterator i(list);
+    QString unit("bytes");
+
+    while(num >= 1024.0 && i.hasNext())
+     {
+        unit = i.next();
+        num /= 1024.0;
+    }
+    return QString().setNum(num, 'f', 2)+" "+unit;
+}
+
 MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
     this->setWindowTitle(tr("OneTimeEnc"));
-    ui->progressBar->setMinimum(0);
-    ui->progressBar->setMaximum(1000);
+
+    public_label = new QLabel(tr("Public key not loaded"));
+    private_label = new QLabel(tr("Private key not loaded"));
+    ui->statusBar->addWidget(public_label);
+    ui->statusBar->addWidget(private_label);
+
+    progress_delegate = new ProgressDelegate();
+    progress_model = new ProgressTableModel();
+
+    ui->tableView->setModel(progress_model);
+    ui->tableView->setItemDelegate(progress_delegate);
+    emit progress_model->layoutChanged();
 
     public_path = "./public.pem";
     private_path = "./private.pem";
@@ -72,7 +101,10 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
 MainWindow::~MainWindow()
 {
     delete ui;
-
+    delete progress_delegate;
+    delete progress_model;
+    delete public_label;
+    delete private_label;
 }
 
 void MainWindow::setup_thread()
@@ -81,9 +113,13 @@ void MainWindow::setup_thread()
             this, SLOT(current_file(const QString&)));
     connect(crypt_thread.get(), SIGNAL(file_failed(const QString&, const QString&)),
             this, SLOT(file_failed(const QString&, const QString&)));
-    connect(crypt_thread.get(), SIGNAL(current_progress(int)),
-            this, SLOT(current_progress(int)));
+    connect(crypt_thread.get(), SIGNAL(current_progress(const QString &, int)),
+            this, SLOT(current_progress(const QString &, int)));
     connect(crypt_thread.get(), SIGNAL(job_finished()), this, SLOT(job_finished()));
+    connect(crypt_thread.get(), SIGNAL(current_finished(const QString &)),
+            this, SLOT(current_finished(const QString &)));
+    connect(crypt_thread.get(), SIGNAL(file_stopped(const QString &)),
+            this, SLOT(file_stopped(const QString &)));
     crypt_thread->start();
 
     //Setup timer
@@ -103,7 +139,7 @@ void MainWindow::load_publickey()
         try
         {
             encryptor = std::make_shared<Encryptor>(public_path.toStdString());
-            ui->public_label->setText(tr("Public key loaded"));
+            public_label->setText(tr("Public key loaded"));
         }
         catch (const std::exception &e)
         {
@@ -127,7 +163,7 @@ void MainWindow::load_privatekey()
         {
             SecureBuffer password = SecureBuffer(text.toStdString());
             decryptor = std::make_shared<Decryptor>(private_path.toStdString(), password);
-            ui->private_label->setText(tr("Private key loaded"));
+            private_label->setText(tr("Private key loaded"));
         }
         catch (const std::exception &e)
         {
@@ -213,8 +249,8 @@ void MainWindow::generate_key_clicked()
         }
 
         //Update UI
-        ui->private_label->setText(tr("Private key loaded"));
-        ui->public_label->setText(tr("Public key loaded"));
+        private_label->setText(tr("Private key loaded"));
+        public_label->setText(tr("Public key loaded"));
     }
 }
 
@@ -233,9 +269,26 @@ void MainWindow::encrypt_clicked()
     dialog.setFileMode(QFileDialog::ExistingFiles);
     if (dialog.exec())
     {
-        crypt_thread = std::make_shared<CryptThread>(encryptor, dialog.selectedFiles());
-        setup_thread();
+        auto files = dialog.selectedFiles();
+        crypt_thread = std::make_shared<CryptThread>(encryptor, files);
+
+        //Clear previous data
+        progress_model->mdata.clear();
+        file_no.clear();
+
+        //Add data to table model
+        for (auto  i = 0; i < files.size(); i++)
+        {
+            QFileInfo f(files[i]);
+            QStringList line({ files[i], tr("Pending"), size_human(f.size()),
+                               QString::number(0), QString()});
+            progress_model->mdata.append(line);
+            file_no[files[i]] = i;
+        }
+
+        emit progress_model->layoutChanged();
         ui->stop_button->setEnabled(true);
+        setup_thread();
     }
 }
 
@@ -253,46 +306,78 @@ void MainWindow::decrypt_clicked()
     dialog.setFileMode(QFileDialog::ExistingFiles);
     if (dialog.exec())
     {
-        crypt_thread = std::make_shared<CryptThread>(decryptor, dialog.selectedFiles());
-        setup_thread();
+        auto files = dialog.selectedFiles();
+
+        crypt_thread = std::make_shared<CryptThread>(decryptor, files);
+
+        progress_model->mdata.clear();
+        file_no.clear();
+        for (auto  i = 0; i < files.size(); i++)
+        {
+            QFileInfo f(files[i]);
+            QStringList line({ files[i], tr("Pending"), size_human(f.size()),
+                               QString::number(0), QString()});
+            progress_model->mdata.append(line);
+            file_no[files[i]] = i;
+        }
+
+        emit progress_model->layoutChanged();
         ui->stop_button->setEnabled(true);
+        setup_thread(); 
     }
 }
 
-void MainWindow::current_file(const QString &s)
+void MainWindow::current_file(const QString &file)
 {
-    ui->reason_label->setText(tr("Total file(s) processed: ") + QString::number(count));
+    auto no = file_no[file];
     count++;
-    ui->filename_label->setText(s);
+    progress_model->mdata[no][ProgressTableModel::ROW_STATUS] = tr("Processing");
+    emit progress_model->layoutChanged();
 }
 
 void MainWindow::file_failed(const QString &file, const QString &reason)
 {
+    auto no = file_no[file];
     count++;
-    ui->filename_label->setText(file);
-    ui->reason_label->setText(reason);
+    progress_model->mdata[no][ProgressTableModel::ROW_STATUS] = tr("Failed");
+    progress_model->mdata[no][ProgressTableModel::ROW_REASON] = reason;
+    emit progress_model->layoutChanged();
 }
 
-void MainWindow::current_progress(int progress)
+void MainWindow::file_stopped(const QString &file)
 {
-    ui->progressBar->setValue(progress);
+    auto no = file_no[file];
+
+    timer.stop();
+    time_record.setHMS(0, 0, 0);
+
+    progress_model->mdata[no][ProgressTableModel::ROW_STATUS] = tr("Stopped");
+    emit progress_model->layoutChanged();
+}
+
+void MainWindow::current_progress(const QString &file, int progress)
+{
+    auto no = file_no[file];
+    progress_model->mdata[no][ProgressTableModel::ROW_PROGRESS] = QString::number(progress);
+    emit progress_model->layoutChanged();
+}
+
+void MainWindow::current_finished(const QString &file)
+{
+    auto no = file_no[file];
+    progress_model->mdata[no][ProgressTableModel::ROW_STATUS] = tr("Finished");
+    emit progress_model->layoutChanged();
 }
 
 void MainWindow::job_finished()
 {
     timer.stop();
     time_record.setHMS(0, 0, 0);
-    ui->progressBar->setValue(0);
     ui->stop_button->setEnabled(false);
-    ui->reason_label->setText(tr("Total file(s) processed: ") + QString::number(count));
 
 }
 
 void MainWindow::stop_job()
 {
-    timer.stop();
-    time_record.setHMS(0, 0, 0);
     crypt_thread->should_stop = true;
-    crypt_thread->wait();
-    ui->reason_label->setText(tr("Total file(s) processed: ") + QString::number(count));
 }
