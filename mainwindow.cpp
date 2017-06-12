@@ -366,6 +366,7 @@ void MainWindow::current_finished(const QString &file)
 {
     auto no = file_no[file];
     progress_model->mdata[no][ProgressTableModel::ROW_STATUS] = tr("Finished");
+    progress_model->mdata[no][ProgressTableModel::ROW_PROGRESS] = QString::number(100);
     emit progress_model->layoutChanged();
 }
 
