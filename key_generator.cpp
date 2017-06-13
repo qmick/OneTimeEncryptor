@@ -81,6 +81,7 @@ bool KeyGenerator::save_private_key(const std::string &private_path, const EVP_P
         throw CryptoException();
     }
     fclose(private_fp);
+    return true;
 }
 
 bool KeyGenerator::save_public_key(const std::string &public_path, const EVP_PKEY_ptr public_key)
@@ -103,4 +104,5 @@ bool KeyGenerator::save_public_key(const std::string &public_path, const EVP_PKE
         throw CryptoException();
     }
     fclose(public_fp);
+    return true;
 }

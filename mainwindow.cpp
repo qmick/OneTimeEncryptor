@@ -401,7 +401,10 @@ void MainWindow::stop_job()
 
 void MainWindow::on_exit()
 {
-    stop_job();
-    crypt_thread->wait();
-    close();
+    if (crypt_thread)
+    {
+        stop_job();
+        crypt_thread->wait(1000);
+    }
+    this->close();
 }
