@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
             m = MainWindow::DECRYPTION;
         else
         {
-            printf_s("Usage: OneTimeEncryptor [enc|dec|all] file1 file2...");
+            printf_s("Usage: OneTimeEncryptor [enc|dec] file1 file2...");
             return -1;
         }
 
