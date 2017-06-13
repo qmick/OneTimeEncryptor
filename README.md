@@ -24,15 +24,15 @@ You can encrypt any file without entering password using public key. But once wa
 
 ### Requirements
 
-Visual Studio 2015 update 3
+G++4.7, Visual Studio 2012 or higher, Visual Studio 2015 update 3 tested
 
-Qt 5.9 MSVC2015 32bit
+Qt5.0 or higher, Qt 5.9 MSVC2015 32bit tested
 
-[Win32 OpenSSL v1.1.0f](https://slproweb.com/download/Win32OpenSSL-1_1_0f.exe)
+OpenSSL v1.1.0 or higher, [Win32 OpenSSL v1.1.0f](https://slproweb.com/download/Win32OpenSSL-1_1_0f.exe) tested
 
 ### Step
 
 1. Clone this repo
 2. Open `OneTimeEncryptor.pro` with QtCreator
-3. Modifiy `INCLUDEPATH += C:/OpenSSL-Win32/include` and  `LIBS += -LC:/OpenSSL-Win32/lib/VC` to where OpenSSL actually locates
+3. Modifiy `INCLUDEPATH +=` and  `LIBS +=` to where OpenSSL actually locates
 4. Build & Run
