@@ -1,5 +1,6 @@
 #include "key_generator.h"
 #include "crypto_exception.h"
+#include "c_exception.h"
 #include <openssl/evp.h>
 #include <openssl/err.h>
 #include <openssl/ec.h>
@@ -67,12 +68,7 @@ bool KeyGenerator::save_private_key(const std::string &private_path, const EVP_P
 
     //Open file for writing pem private key
     if (fopen_s(&private_fp, private_path.c_str(), "w") != 0)
-    {
-        char buf[256] = { '\0' };
-        if (0 != strerror_s(buf, 256, errno))
-            qDebug()<<"system error";
-        throw runtime_error(buf);
-    }
+        throw CException();
 
     if (!PEM_write_PrivateKey(private_fp, private_key.get(), EVP_aes_256_cbc(), password.get(),
                               static_cast<int>(password.size()), NULL, NULL))
@@ -90,13 +86,7 @@ bool KeyGenerator::save_public_key(const std::string &public_path, const EVP_PKE
 
     //Open file for writing pem public key
     if (fopen_s(&public_fp, public_path.c_str(), "w") != 0)
-    {
-
-        char buf[256] = { '\0' };
-        if (0 != strerror_s(buf, 256, errno))
-            qDebug()<<"system error";
-        throw runtime_error(buf);
-    }
+        throw CException();
 
     if (!PEM_write_PUBKEY(public_fp, public_key.get()))
     {

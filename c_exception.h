@@ -1,18 +1,19 @@
-#ifndef CRYPTO_EXCEPTION_H
-#define CRYPTO_EXCEPTION_H
+#ifndef C_EXCEPTION_H
+#define C_EXCEPTION_H
 
 #include <exception>
 #include <string>
 
-class CryptoException : public std::exception
+class CException : public std::exception
 {
 public:
     static const int kMaxErrorStringLen = 256;
-    CryptoException();
+    CException();
+    explicit CException(const std::string &msg);
     virtual const char* what() const noexcept;
 
 private:
     std::string what_str;
 };
 
-#endif // CRYPTO_EXCEPTION_H
+#endif // C_EXCEPTION_H

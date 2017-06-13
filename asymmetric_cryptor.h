@@ -8,6 +8,8 @@
 class AsymmetricCryptor
 {
 public:
+    const std::string kCryptSign = "[encrypted]";
+
     virtual ~AsymmetricCryptor();
 
     /**
@@ -24,5 +26,6 @@ public:
      */
     virtual EVP_PKEY_ptr get_key() = 0;
 };
+
 
 #endif // ASYMMETRIC_CRYPTOR_H

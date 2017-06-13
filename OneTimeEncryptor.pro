@@ -35,7 +35,8 @@ SOURCES += \
     crypt_thread.cpp \
     asymmetric_cryptor.cpp \
     progress_tablemodel.cpp \
-    progress_delegate.cpp
+    progress_delegate.cpp \
+    c_exception.cpp
 
 HEADERS += \
         mainwindow.h \
@@ -48,7 +49,8 @@ HEADERS += \
     asymmetric_cryptor.h \
     crypt_thread.h \
     progress_tablemodel.h \
-    progress_delegate.h
+    progress_delegate.h \
+    c_exception.h
 
 FORMS += \
         mainwindow.ui

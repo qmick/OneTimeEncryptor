@@ -2,6 +2,7 @@
 #include "symmetric_cryptor.h"
 #include "key_generator.h"
 #include "crypto_exception.h"
+#include "c_exception.h"
 #include <openssl/conf.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
@@ -12,7 +13,6 @@
 using std::string;
 using std::shared_ptr;
 using std::runtime_error;
-static const string crypt_sign = "[encrypted]";
 
 Encryptor::Encryptor(const string &master_pubkey_pem)
 {
@@ -21,7 +21,7 @@ Encryptor::Encryptor(const string &master_pubkey_pem)
     //Open pem file that contains master private ec key
     FILE *tmp;
     if (fopen_s(&tmp, master_pubkey_pem.c_str(), "r") != 0)
-        throw runtime_error("cannot open private key file");
+        throw CException("cannot open private key file: ");
     pubkey_fp = shared_ptr<FILE>(tmp, ::fclose);
 
     //Read master private key from file
@@ -41,7 +41,7 @@ long long Encryptor::crypt_file(const string &filename, std::function<bool(long 
 {
     EVP_CIPHER_CTX_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
     FILE *plain_fp = NULL, *cipher_fp = NULL;
-    string cipher_filename = filename + crypt_sign;
+    string cipher_filename = filename + kCryptSign;
     long long ciphertext_len = 0;
 
     //ECDH
@@ -51,7 +51,7 @@ long long Encryptor::crypt_file(const string &filename, std::function<bool(long 
 
     //Open source file for reading
     if (fopen_s(&plain_fp, filename.c_str(), "rb") != 0)
-        throw runtime_error(filename + ": cannot be opened.\n");
+        throw CException("cannot open: ");
 
     //If dst file exist, remove it
     remove(cipher_filename.c_str());
@@ -60,7 +60,7 @@ long long Encryptor::crypt_file(const string &filename, std::function<bool(long 
     if (fopen_s(&cipher_fp, cipher_filename.c_str(), "ab") != 0)
     {
         fclose(plain_fp);
-        throw runtime_error(cipher_filename + "%s cannot be opened");
+        throw CException("cannot open: ");
     }
 
     //Write session publick key to file header
@@ -69,7 +69,7 @@ long long Encryptor::crypt_file(const string &filename, std::function<bool(long 
         fclose(plain_fp);
         fclose(cipher_fp);
         remove(cipher_filename.c_str());
-        throw runtime_error(cipher_filename + ": error writing pubkey");
+        throw CException("error writing pubkey: ");
     }
 
     try

@@ -54,13 +54,12 @@ void CryptThread::run() {
                     break;
                 }
                 count++;
+                emit current_finished(i);
             }
             catch (std::exception &e)
             {
                 emit file_failed(i, QString(e.what()));
-            }
-
-            emit current_finished(i);
+            }  
         }
         else
             emit file_failed(i, tr("File not exists or size 0"));

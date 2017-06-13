@@ -2,13 +2,13 @@
 #include "crypto_exception.h"
 #include "key_generator.h"
 #include "symmetric_cryptor.h"
+#include "c_exception.h"
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <cerrno>
 
 
 using std::runtime_error;
-static const std::string crypt_sign = "[encrypted]";
 
 Decryptor::Decryptor(const std::string &master_prikey_pem, SecureBuffer &password)
 {
@@ -17,7 +17,7 @@ Decryptor::Decryptor(const std::string &master_prikey_pem, SecureBuffer &passwor
     //Open pem file that contains master private ec key
     FILE *tmp;
     if (fopen_s(&tmp, master_prikey_pem.c_str(), "r") != 0)
-        throw runtime_error("cannot open private key file");
+        throw CException("cannot open private key file");
     prikey_fp = shared_ptr<FILE>(tmp, ::fclose);
 
     //Read master private key from file
@@ -35,7 +35,7 @@ Decryptor::~Decryptor()
 long long Decryptor::crypt_file(const std::string &filename, std::function<bool(long long)> callback)
 {
     //Decrypted file name
-    std::string plain_filename = filename.substr(0, filename.length() - crypt_sign.length());
+    std::string plain_filename = filename.substr(0, filename.length() - kCryptSign.length());
 
     //Session public key
     EVP_PKEY_ptr pub_key;
@@ -51,7 +51,7 @@ long long Decryptor::crypt_file(const std::string &filename, std::function<bool(
 
     //Open encrypted file
     if (fopen_s(&cipher_fp, filename.c_str(), "r") != 0)
-        throw runtime_error(filename + ": cannot open");
+        throw CException("cannot open: ");
 
     //Remove decrypted file if exists
     if (remove(plain_filename.c_str()) != 0)
@@ -59,7 +59,7 @@ long long Decryptor::crypt_file(const std::string &filename, std::function<bool(
         if (errno != ENOENT)
         {
             fclose(cipher_fp);
-            throw runtime_error(plain_filename + ": cannot remove");
+            throw CException("cannot remove: ");
         }
     }
 
@@ -67,7 +67,7 @@ long long Decryptor::crypt_file(const std::string &filename, std::function<bool(
     if (fopen_s(&plain_fp, plain_filename.c_str(), "ab") != 0)
     {
         fclose(cipher_fp);
-        throw runtime_error(plain_filename + ": cannot open");
+        throw CException("cannot open: ");
     }
 
     //Read session public key from header of encrypted file
