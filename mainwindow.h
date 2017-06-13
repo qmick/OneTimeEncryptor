@@ -47,6 +47,7 @@ private:
     QTimer timer;
     QTime time_record;
     int count;
+    bool auto_close;
 
     //UI
     ProgressDelegate *progress_delegate;
@@ -56,6 +57,9 @@ private:
 
     //Find place of file progress by its name
     QHash<QString, int> file_no;
+
+    void setup_progress(const QStringList &files);
+
     /**
      * @brief setup_thread Setup working thread for encryption or decryption
      */
@@ -65,8 +69,8 @@ private:
 
 public slots:
     //load public and private key from pem file
-    void load_publickey();
-    void load_privatekey();
+    bool load_publickey();
+    bool load_privatekey();
 
     //Update UI timer
     void update_time();
@@ -79,7 +83,7 @@ public slots:
     void decrypt_clicked();
 
     //Get filename that being processed currently
-    void current_file(const QString &file);
+    void current_file(const QString &filename, const qint64 filesize);
 
     //Get file that fail to encrypt/decrypt and reason
     void file_failed(const QString &file, const QString &reason);
@@ -98,6 +102,9 @@ public slots:
 
     //Stop encryption/decryption job(s)
     void stop_job();
+
+    //On exit
+    void on_exit();
 };
 
 #endif // MAINWINDOW_H

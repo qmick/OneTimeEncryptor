@@ -53,6 +53,7 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
 
     public_path = "./public.pem";
     private_path = "./private.pem";
+    auto_close = false;
 
     connect(&timer,                     SIGNAL(timeout()),   this, SLOT(update_time()));
     connect(ui->action_Generate_Key,    SIGNAL(triggered()), this, SLOT(generate_key_clicked()));
@@ -61,32 +62,37 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
     connect(ui->stop_button,            SIGNAL(clicked()),   this, SLOT(stop_job()));
     connect(ui->actionLoad_private_key, SIGNAL(triggered()), this, SLOT(load_privatekey()));
     connect(ui->actionLoad_public_key,  SIGNAL(triggered()), this, SLOT(load_publickey()));
+    connect(ui->actionE_xit,            SIGNAL(triggered()),  this, SLOT(on_exit()));
 
     switch (mode)
     {
     //Open for encryption
     case ENCRYPTION:
-        load_publickey();
+        if (!load_publickey())
+            return;
 
         //If command line args contains filenames, encrypt them automatically
         if (!files.isEmpty())
         {
             crypt_thread = std::make_shared<CryptThread>(encryptor, files);
+            setup_progress(files);
             setup_thread();
-            ui->stop_button->setEnabled(true);
+            auto_close = true;
         }
         break;
 
     //Open for decryption
     case DECRYPTION:
-        load_privatekey();
+        if (!load_privatekey())
+            return;
 
         //If command line args contains filenames, decrypt them automatically
         if (!files.isEmpty())
         {
             crypt_thread = std::make_shared<CryptThread>(decryptor, files);
+            setup_progress(files);
             setup_thread();
-            ui->stop_button->setEnabled(true);
+            auto_close = true;
         }
         break;
 
@@ -107,10 +113,30 @@ MainWindow::~MainWindow()
     delete private_label;
 }
 
+void MainWindow::setup_progress(const QStringList &files)
+{
+    //Clear previous data
+    progress_model->mdata.clear();
+    file_no.clear();
+
+    //Add data to table model
+    for (auto  i = 0; i < files.size(); i++)
+    {
+        QFileInfo f(files[i]);
+        QStringList line({ files[i], tr("Pending"), size_human(0),
+                           QString::number(0), QString()});
+        progress_model->mdata.append(line);
+        file_no[files[i]] = i;
+    }
+
+    emit progress_model->layoutChanged();
+    ui->stop_button->setEnabled(true);
+}
+
 void MainWindow::setup_thread()
 {
-    connect(crypt_thread.get(), SIGNAL(current_file(const QString&)),
-            this, SLOT(current_file(const QString&)));
+    connect(crypt_thread.get(), SIGNAL(current_file(const QString&, const qint64)),
+            this, SLOT(current_file(const QString&, const qint64)));
     connect(crypt_thread.get(), SIGNAL(file_failed(const QString&, const QString&)),
             this, SLOT(file_failed(const QString&, const QString&)));
     connect(crypt_thread.get(), SIGNAL(current_progress(const QString &, int)),
@@ -120,7 +146,13 @@ void MainWindow::setup_thread()
             this, SLOT(current_finished(const QString &)));
     connect(crypt_thread.get(), SIGNAL(file_stopped(const QString &)),
             this, SLOT(file_stopped(const QString &)));
-    crypt_thread->start();
+
+    //Disable other operation
+    ui->actionLoad_private_key->setDisabled(true);
+    ui->actionLoad_public_key->setDisabled(true);
+    ui->action_Decrypt->setDisabled(true);
+    ui->action_Encrypt->setDisabled(true);
+    ui->action_Generate_Key->setDisabled(true);
 
     //Setup timer
     timer.start(1000);
@@ -129,9 +161,11 @@ void MainWindow::setup_thread()
 
     //Initialize processed file(s) counter
     count = 0;
+
+    crypt_thread->start();
 }
 
-void MainWindow::load_publickey()
+bool MainWindow::load_publickey()
 {
     QFileInfo check_pubfile(public_path);
     if (check_pubfile.exists() && check_pubfile.isFile())
@@ -140,6 +174,7 @@ void MainWindow::load_publickey()
         {
             encryptor = std::make_shared<Encryptor>(public_path.toStdString());
             public_label->setText(tr("Public key loaded"));
+            return true;
         }
         catch (const std::exception &e)
         {
@@ -148,9 +183,11 @@ void MainWindow::load_publickey()
                                  QMessageBox::Abort);
         }
     }
+
+    return false;
 }
 
-void MainWindow::load_privatekey()
+bool MainWindow::load_privatekey()
 {
     QFileInfo check_prifile(private_path);
     if (check_prifile.exists() && check_prifile.isFile())
@@ -164,6 +201,7 @@ void MainWindow::load_privatekey()
             SecureBuffer password = SecureBuffer(text.toStdString());
             decryptor = std::make_shared<Decryptor>(private_path.toStdString(), password);
             private_label->setText(tr("Private key loaded"));
+            return true;
         }
         catch (const std::exception &e)
         {
@@ -172,6 +210,8 @@ void MainWindow::load_privatekey()
                                  QMessageBox::Abort);
         }
     }
+
+    return false;
 }
 
 void MainWindow::update_time()
@@ -272,22 +312,7 @@ void MainWindow::encrypt_clicked()
         auto files = dialog.selectedFiles();
         crypt_thread = std::make_shared<CryptThread>(encryptor, files);
 
-        //Clear previous data
-        progress_model->mdata.clear();
-        file_no.clear();
-
-        //Add data to table model
-        for (auto  i = 0; i < files.size(); i++)
-        {
-            QFileInfo f(files[i]);
-            QStringList line({ files[i], tr("Pending"), size_human(f.size()),
-                               QString::number(0), QString()});
-            progress_model->mdata.append(line);
-            file_no[files[i]] = i;
-        }
-
-        emit progress_model->layoutChanged();
-        ui->stop_button->setEnabled(true);
+        setup_progress(files);
         setup_thread();
     }
 }
@@ -310,28 +335,17 @@ void MainWindow::decrypt_clicked()
 
         crypt_thread = std::make_shared<CryptThread>(decryptor, files);
 
-        progress_model->mdata.clear();
-        file_no.clear();
-        for (auto  i = 0; i < files.size(); i++)
-        {
-            QFileInfo f(files[i]);
-            QStringList line({ files[i], tr("Pending"), size_human(f.size()),
-                               QString::number(0), QString()});
-            progress_model->mdata.append(line);
-            file_no[files[i]] = i;
-        }
-
-        emit progress_model->layoutChanged();
-        ui->stop_button->setEnabled(true);
+        setup_progress(files);
         setup_thread(); 
     }
 }
 
-void MainWindow::current_file(const QString &file)
+void MainWindow::current_file(const QString &filename, const qint64 filesize)
 {
-    auto no = file_no[file];
+    auto no = file_no[filename];
     count++;
     progress_model->mdata[no][ProgressTableModel::ROW_STATUS] = tr("Processing");
+    progress_model->mdata[no][ProgressTableModel::ROW_SIZE] = ::size_human(filesize);
     emit progress_model->layoutChanged();
 }
 
@@ -375,10 +389,24 @@ void MainWindow::job_finished()
     timer.stop();
     time_record.setHMS(0, 0, 0);
     ui->stop_button->setEnabled(false);
+    if (auto_close)
+        this->close();
 
+    ui->actionLoad_private_key->setDisabled(false);
+    ui->actionLoad_public_key->setDisabled(false);
+    ui->action_Decrypt->setDisabled(false);
+    ui->action_Encrypt->setDisabled(false);
+    ui->action_Generate_Key->setDisabled(false);
 }
 
 void MainWindow::stop_job()
 {
     crypt_thread->should_stop = true;
+}
+
+void MainWindow::on_exit()
+{
+    stop_job();
+    crypt_thread->wait();
+    close();
 }

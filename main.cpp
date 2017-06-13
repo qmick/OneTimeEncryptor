@@ -7,7 +7,7 @@ int main(int argc, char *argv[])
     MainWindow::Mode m = MainWindow::ALL;
     QStringList files;
 
-    //./OneTimeEnc [enc|dec|all] file1 file2...
+    //./OneTimeEncryptor [enc|dec|all] file1 file2...
     if (argc > 1)
     {
         QString arg = argv[1];
@@ -15,10 +15,11 @@ int main(int argc, char *argv[])
             m = MainWindow::ENCRYPTION;
         else if (arg == "dec")
             m = MainWindow::DECRYPTION;
-        else if (arg == "all")
-            m = MainWindow::ALL;
         else
+        {
+            printf_s("Usage: OneTimeEncryptor [enc|dec|all] file1 file2...");
             return -1;
+        }
 
         //Get file(s)
         if (argc > 2)

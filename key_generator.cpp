@@ -8,22 +8,20 @@
 
 EVP_PKEY_free_ptr KeyGenerator::get_key_pair()
 {
-    EVP_PKEY_free_ptr key_pair;
     EVP_PKEY_CTX_free_ptr pctx;
 
     /* Create the context for parameter generation */
     pctx = EVP_PKEY_CTX_free_ptr(EVP_PKEY_CTX_new_id(NID_X25519, NULL), ::EVP_PKEY_CTX_free);
 
     /* Generate the key */
-    EVP_PKEY *tmp = NULL;
     if (1 != EVP_PKEY_keygen_init(pctx.get()))
         throw CryptoException();
+    EVP_PKEY *tmp = NULL;
     auto ret = EVP_PKEY_keygen(pctx.get(), &tmp);
     if (ret != 1)
         throw CryptoException();
-    key_pair = EVP_PKEY_free_ptr(tmp, ::EVP_PKEY_free);
 
-    return key_pair;
+    return EVP_PKEY_free_ptr(tmp, ::EVP_PKEY_free);
 }
 
 SecureBuffer KeyGenerator::get_secret(const EVP_PKEY_free_ptr pkey,

@@ -21,7 +21,7 @@ protected:
     void run();
 
 signals:
-    void current_file(const QString &s);
+    void current_file(const QString &filename, const qint64 filesize);
     void file_failed(const QString &file, const QString &reason);
     void file_stopped(const QString &file);
     void current_progress(const QString &file, int progress);

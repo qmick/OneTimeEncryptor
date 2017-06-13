@@ -33,10 +33,9 @@ void CryptThread::run() {
     for (auto &i : file_names)
     {
         QFileInfo f(i);
+        emit current_file(i, f.size());
         if (f.exists() && f.isFile() && f.size() > 0)
         {
-            emit current_file(i);
-
             //Callback that used to recieve progress and send stop signal
             std::function<bool(long long)> cb = [&](long long bytes) {
                 auto total = static_cast<double>(f.size());
@@ -63,6 +62,8 @@ void CryptThread::run() {
 
             emit current_finished(i);
         }
+        else
+            emit file_failed(i, tr("File not exists or size 0"));
     }
     emit job_finished();
 }
