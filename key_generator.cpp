@@ -4,14 +4,17 @@
 #include <openssl/err.h>
 #include <openssl/ec.h>
 #include <openssl/pem.h>
+#include <cerrno>
+#include <QDebug>
 
+using std::runtime_error;
 
-EVP_PKEY_free_ptr KeyGenerator::get_key_pair()
+EVP_PKEY_ptr KeyGenerator::get_key_pair()
 {
-    EVP_PKEY_CTX_free_ptr pctx;
+    EVP_PKEY_CTX_ptr pctx;
 
     /* Create the context for parameter generation */
-    pctx = EVP_PKEY_CTX_free_ptr(EVP_PKEY_CTX_new_id(NID_X25519, NULL), ::EVP_PKEY_CTX_free);
+    pctx = EVP_PKEY_CTX_ptr(EVP_PKEY_CTX_new_id(NID_X25519, NULL), ::EVP_PKEY_CTX_free);
 
     /* Generate the key */
     if (1 != EVP_PKEY_keygen_init(pctx.get()))
@@ -21,17 +24,17 @@ EVP_PKEY_free_ptr KeyGenerator::get_key_pair()
     if (ret != 1)
         throw CryptoException();
 
-    return EVP_PKEY_free_ptr(tmp, ::EVP_PKEY_free);
+    return EVP_PKEY_ptr(tmp, ::EVP_PKEY_free);
 }
 
-SecureBuffer KeyGenerator::get_secret(const EVP_PKEY_free_ptr pkey,
-                                      const EVP_PKEY_free_ptr peerkey)
+SecureBuffer KeyGenerator::get_secret(const EVP_PKEY_ptr pkey,
+                                      const EVP_PKEY_ptr peerkey)
 {
-    EVP_PKEY_CTX_free_ptr ctx;
+    EVP_PKEY_CTX_ptr ctx;
     SecureBuffer secret;
     size_t secret_len;
     /* Create the context for the shared secret derivation */
-    ctx = EVP_PKEY_CTX_free_ptr(EVP_PKEY_CTX_new(pkey.get(), NULL), ::EVP_PKEY_CTX_free);
+    ctx = EVP_PKEY_CTX_ptr(EVP_PKEY_CTX_new(pkey.get(), NULL), ::EVP_PKEY_CTX_free);
 
     /* Initialise */
     if (1 != EVP_PKEY_derive_init(ctx.get()))
@@ -57,16 +60,47 @@ SecureBuffer KeyGenerator::get_secret(const EVP_PKEY_free_ptr pkey,
     return secret;
 }
 
-bool KeyGenerator::save_key_pair(FILE *dst_public, FILE *dst_private,
-                                 const EVP_PKEY_free_ptr key_pair, SecureBuffer &password)
+bool KeyGenerator::save_private_key(const std::string &private_path, const EVP_PKEY_ptr private_key,
+                                    SecureBuffer &password)
 {
-    if (!PEM_write_PrivateKey(dst_private, key_pair.get(), EVP_aes_256_cbc(), password.get(),
+    FILE *private_fp = NULL;
+
+    //Open file for writing pem private key
+    if (fopen_s(&private_fp, private_path.c_str(), "w") != 0)
+    {
+        char buf[256] = { '\0' };
+        if (0 != strerror_s(buf, 256, errno))
+            qDebug()<<"system error";
+        throw runtime_error(buf);
+    }
+
+    if (!PEM_write_PrivateKey(private_fp, private_key.get(), EVP_aes_256_cbc(), password.get(),
                               static_cast<int>(password.size()), NULL, NULL))
+    {
+        fclose(private_fp);
         throw CryptoException();
-
-    if (!PEM_write_PUBKEY(dst_public, key_pair.get()))
-        throw CryptoException();
-
-    return true;
+    }
+    fclose(private_fp);
 }
 
+bool KeyGenerator::save_public_key(const std::string &public_path, const EVP_PKEY_ptr public_key)
+{
+    FILE *public_fp = NULL;
+
+    //Open file for writing pem public key
+    if (fopen_s(&public_fp, public_path.c_str(), "w") != 0)
+    {
+
+        char buf[256] = { '\0' };
+        if (0 != strerror_s(buf, 256, errno))
+            qDebug()<<"system error";
+        throw runtime_error(buf);
+    }
+
+    if (!PEM_write_PUBKEY(public_fp, public_key.get()))
+    {
+        fclose(public_fp);
+        throw CryptoException();
+    }
+    fclose(public_fp);
+}

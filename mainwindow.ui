@@ -82,6 +82,7 @@
     <addaction name="action_Generate_Key"/>
     <addaction name="actionLoad_private_key"/>
     <addaction name="actionLoad_public_key"/>
+    <addaction name="action_Reset_password"/>
    </widget>
    <addaction name="menu_File"/>
    <addaction name="menuKey"/>
@@ -124,6 +125,11 @@
   <action name="actionLoad_public_key">
    <property name="text">
     <string>Load p&amp;ublic key</string>
+   </property>
+  </action>
+  <action name="action_Reset_password">
+   <property name="text">
+    <string>&amp;Reset password</string>
    </property>
   </action>
  </widget>

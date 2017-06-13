@@ -24,7 +24,7 @@ Decryptor::Decryptor(const std::string &master_prikey_pem, SecureBuffer &passwor
     auto ret = PEM_read_PrivateKey(prikey_fp.get(), NULL, NULL, password.get());
     if (ret == NULL)
         throw CryptoException();
-    master_key = EVP_PKEY_free_ptr(ret, ::EVP_PKEY_free);
+    master_key = EVP_PKEY_ptr(ret, ::EVP_PKEY_free);
 }
 
 Decryptor::~Decryptor()
@@ -38,12 +38,12 @@ long long Decryptor::crypt_file(const std::string &filename, std::function<bool(
     std::string plain_filename = filename.substr(0, filename.length() - crypt_sign.length());
 
     //Session public key
-    EVP_PKEY_free_ptr pub_key;
+    EVP_PKEY_ptr pub_key;
 
     //Secret from ECDH
     SecureBuffer secret;
 
-    EVP_CIPHER_CTX_free_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
+    EVP_CIPHER_CTX_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
     FILE *cipher_fp = NULL, *plain_fp = NULL;
 
     //Decrypted data size
@@ -78,7 +78,7 @@ long long Decryptor::crypt_file(const std::string &filename, std::function<bool(
         fclose(plain_fp);
         throw CryptoException();
     }
-    pub_key = EVP_PKEY_free_ptr(ret, ::EVP_PKEY_free);
+    pub_key = EVP_PKEY_ptr(ret, ::EVP_PKEY_free);
 
     //ECDH
     secret = KeyGenerator::get_secret(master_key, pub_key);
@@ -111,4 +111,9 @@ long long Decryptor::crypt_file(const std::string &filename, std::function<bool(
         fclose(plain_fp);
 
     return plaintext_len;
+}
+
+EVP_PKEY_ptr Decryptor::get_key()
+{
+    return master_key;
 }

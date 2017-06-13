@@ -26,7 +26,7 @@ QString size_human(qint64 size)
     QString unit("bytes");
 
     while(num >= 1024.0 && i.hasNext())
-     {
+    {
         unit = i.next();
         num /= 1024.0;
     }
@@ -37,7 +37,7 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
     : QMainWindow(parent), ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    this->setWindowTitle(tr("OneTimeEnc"));
+    this->setWindowTitle(tr("OneTimeEncryptor"));
 
     public_label = new QLabel(tr("Public key not loaded"));
     private_label = new QLabel(tr("Private key not loaded"));
@@ -62,7 +62,8 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
     connect(ui->stop_button,            SIGNAL(clicked()),   this, SLOT(stop_job()));
     connect(ui->actionLoad_private_key, SIGNAL(triggered()), this, SLOT(load_privatekey()));
     connect(ui->actionLoad_public_key,  SIGNAL(triggered()), this, SLOT(load_publickey()));
-    connect(ui->actionE_xit,            SIGNAL(triggered()),  this, SLOT(on_exit()));
+    connect(ui->actionE_xit,            SIGNAL(triggered()), this, SLOT(on_exit()));
+    connect(ui->action_Reset_password,  SIGNAL(triggered()), this, SLOT(reset_password()));
 
     switch (mode)
     {
@@ -214,6 +215,35 @@ bool MainWindow::load_privatekey()
     return false;
 }
 
+void MainWindow::reset_password()
+{
+    if (!decryptor)
+    {
+        QMessageBox::critical(this, tr("Error"),
+                              tr("Cannot reset password: private key not loaded"),
+                              QMessageBox::Abort);
+        return;
+    }
+
+    bool ok;
+    QString text = QInputDialog::getText(this, tr("Input password"),
+                                         tr("Password:"), QLineEdit::Password,
+                                         QDir::home().dirName(), &ok);
+    SecureBuffer password = SecureBuffer(text.toStdString());
+    auto private_key = decryptor->get_key();
+
+    try
+    {
+        KeyGenerator::save_private_key(private_path.toStdString(), private_key, password);
+    }
+    catch (const std::exception &e)
+    {
+        QMessageBox::critical(this, tr("Error"),
+                              tr("Cannot reset password: ") + e.what(),
+                              QMessageBox::Abort);
+    }
+}
+
 void MainWindow::update_time()
 {
     time_record = time_record.addSecs(1);
@@ -231,53 +261,18 @@ void MainWindow::generate_key_clicked()
 
     if (ok && !text.isEmpty())
     {
-        FILE *private_fp = NULL, *public_fp = NULL;
-
-        //Open file for writing pem private key
-        if (fopen_s(&private_fp, private_path.toStdString().c_str(), "w") != 0)
-        {
-            char buf[256];
-            if (0 != strerror_s(buf, 256, errno))
-                qDebug()<<"system error";
-            QMessageBox::critical(this, tr("Error"),
-                                  tr("Cannot open private key file: ") + buf, QMessageBox::Abort);
-            return;
-        }
-
-        //Open file for writing pem public key
-        if (fopen_s(&public_fp, public_path.toStdString().c_str(), "w") != 0)
-        {
-            fclose(private_fp);
-
-            char buf[256];
-            if (0 != strerror_s(buf, 256, errno))
-                qDebug()<<"system error";
-            QMessageBox::critical(this, tr("Error"),
-                                  tr("Cannot open public key file: ") + buf, QMessageBox::Abort);
-            return;
-        }
-
         try
         {
             auto key_pair = KeyGenerator::get_key_pair();
-            KeyGenerator::save_key_pair(public_fp, private_fp, key_pair, password);
 
-            //Do some clean
-            fclose(private_fp);
-            private_fp = NULL;
-            fclose(public_fp);
-            public_fp = NULL;
+            KeyGenerator::save_private_key(private_path.toStdString(), key_pair, password);
+            KeyGenerator::save_public_key(public_path.toStdString(), key_pair);
 
             encryptor = std::make_shared<Encryptor>(public_path.toStdString());
             decryptor = std::make_shared<Decryptor>(private_path.toStdString(), password);
         }
         catch (std::exception &e)
         {
-            if (private_fp)
-                fclose(private_fp);
-            if (public_fp)
-                fclose(public_fp);
-
             //Remove generated files
             remove(public_path.toStdString().c_str());
             remove(private_path.toStdString().c_str());

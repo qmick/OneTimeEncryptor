@@ -32,7 +32,7 @@ long long SymmetricCryptor::encrypt_file(FILE *dst, FILE *src, std::function<boo
     //Data length of 1 update cycle
     int block_len = 0;
 
-    EVP_CIPHER_CTX_free_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
+    EVP_CIPHER_CTX_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
 
     /* Initialise the encryption operation. IMPORTANT - ensure you use a key
     * and IV size appropriate for your cipher
@@ -92,7 +92,7 @@ long long SymmetricCryptor::decrypt_file(FILE *dst, FILE *src, function<bool(lon
 {
     auto in_buf = SecureBuffer(kMaxInBufferSize);
     auto out_buf = SecureBuffer(kMaxOutBufferSize);
-    EVP_CIPHER_CTX_free_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
+    EVP_CIPHER_CTX_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
     long long plain_len = 0;
     int block_len = 0;
 

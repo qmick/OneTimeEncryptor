@@ -10,9 +10,9 @@ typedef unsigned char byte;
 using std::shared_ptr;
 
 //Smart pointers for openssl structure
-using EVP_CIPHER_CTX_free_ptr = shared_ptr<EVP_CIPHER_CTX>;
-using EVP_PKEY_free_ptr = shared_ptr<EVP_PKEY>;
-using EVP_PKEY_CTX_free_ptr = shared_ptr<EVP_PKEY_CTX>;
+using EVP_CIPHER_CTX_ptr = shared_ptr<EVP_CIPHER_CTX>;
+using EVP_PKEY_ptr = shared_ptr<EVP_PKEY>;
+using EVP_PKEY_CTX_ptr = shared_ptr<EVP_PKEY_CTX>;
 
 
 /**

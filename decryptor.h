@@ -2,7 +2,7 @@
 #define FILE_DECRYPTOR_H
 
 #include "asymmetric_cryptor.h"
-#include "secure_memory.h"
+
 
 class Decryptor : public AsymmetricCryptor
 {
@@ -24,9 +24,15 @@ public:
      */
     long long crypt_file(const std::string &filename, std::function<bool(long long)> callback) override;
 
+    /**
+     * @brief Get master private key
+     * @return
+     */
+    EVP_PKEY_ptr get_key() override;
+
 private:
     //Master private key
-    EVP_PKEY_free_ptr master_key;
+    EVP_PKEY_ptr master_key;
 };
 
 #endif // FILE_DECRYPTOR_H

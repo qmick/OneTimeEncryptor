@@ -72,6 +72,9 @@ public slots:
     bool load_publickey();
     bool load_privatekey();
 
+    //Reset password that used to encrypt private key
+    void reset_password();
+
     //Update UI timer
     void update_time();
 

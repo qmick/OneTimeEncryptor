@@ -28,7 +28,7 @@ Encryptor::Encryptor(const string &master_pubkey_pem)
     auto ret = PEM_read_PUBKEY(pubkey_fp.get(), NULL, NULL, NULL);
     if (ret == NULL)
         throw CryptoException();
-    master_key = EVP_PKEY_free_ptr(ret, ::EVP_PKEY_free);
+    master_key = EVP_PKEY_ptr(ret, ::EVP_PKEY_free);
 }
 
 Encryptor::~Encryptor()
@@ -39,7 +39,7 @@ Encryptor::~Encryptor()
 
 long long Encryptor::crypt_file(const string &filename, std::function<bool(long long)> callback)
 {
-    EVP_CIPHER_CTX_free_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
+    EVP_CIPHER_CTX_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
     FILE *plain_fp = NULL, *cipher_fp = NULL;
     string cipher_filename = filename + crypt_sign;
     long long ciphertext_len = 0;
@@ -97,6 +97,11 @@ long long Encryptor::crypt_file(const string &filename, std::function<bool(long 
         fclose(cipher_fp);
 
     return ciphertext_len;
+}
+
+EVP_PKEY_ptr Encryptor::get_key()
+{
+    return master_key;
 }
 
 
