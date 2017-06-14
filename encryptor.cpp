@@ -13,6 +13,8 @@
 using std::string;
 using std::shared_ptr;
 using std::runtime_error;
+using std::exception;
+using std::function;
 
 Encryptor::Encryptor(const string &master_pubkey_pem)
 {
@@ -37,7 +39,7 @@ Encryptor::~Encryptor()
 }
 
 
-long long Encryptor::crypt_file(const string &filename, std::function<bool(long long)> callback)
+long long Encryptor::crypt_file(const string &filename, function<bool(long long)> callback)
 {
     EVP_CIPHER_CTX_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
     FILE *plain_fp = NULL, *cipher_fp = NULL;
@@ -53,11 +55,8 @@ long long Encryptor::crypt_file(const string &filename, std::function<bool(long 
     if (fopen_s(&plain_fp, filename.c_str(), "rb") != 0)
         throw CException("cannot open: ");
 
-    //If dst file exist, remove it
-    remove(cipher_filename.c_str());
-
     //Open dst file for writing
-    if (fopen_s(&cipher_fp, cipher_filename.c_str(), "ab") != 0)
+    if (fopen_s(&cipher_fp, cipher_filename.c_str(), "wb") != 0)
     {
         fclose(plain_fp);
         throw CException("cannot open: ");
@@ -69,22 +68,14 @@ long long Encryptor::crypt_file(const string &filename, std::function<bool(long 
         fclose(plain_fp);
         fclose(cipher_fp);
         remove(cipher_filename.c_str());
-        throw CException("error writing pubkey: ");
+        throw CryptoException();
     }
 
     try
     {
         ciphertext_len = cryptor.encrypt_file(cipher_fp, plain_fp, callback);
-
-        //Stop manually, remove incomplete encrypted file
-        if (ciphertext_len < 0)
-        {
-            fclose(cipher_fp);
-            cipher_fp = NULL;
-            remove(cipher_filename.c_str());
-        }
     }
-    catch (std::exception &e)
+    catch (exception &e)
     {
         fclose(plain_fp);
         fclose(cipher_fp);
@@ -93,8 +84,13 @@ long long Encryptor::crypt_file(const string &filename, std::function<bool(long 
     }
 
     fclose(plain_fp);
-    if (cipher_fp)
-        fclose(cipher_fp);
+    fclose(cipher_fp);
+
+    //Stop manually, remove incomplete encrypted file
+    if (ciphertext_len < 0)
+    {
+        remove(cipher_filename.c_str());
+    }
 
     return ciphertext_len;
 }

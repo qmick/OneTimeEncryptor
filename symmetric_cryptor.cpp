@@ -18,7 +18,7 @@ SymmetricCryptor::SymmetricCryptor(SecureBuffer &secret)
 }
 
 
-long long SymmetricCryptor::encrypt_file(FILE *dst, FILE *src, std::function<bool(long long)> callback)
+long long SymmetricCryptor::encrypt_file(FILE *dst, FILE *src, function<bool(long long)> callback)
 {
     //Buffer to place read data
     auto in_buf = SecureBuffer(kMaxInBufferSize);

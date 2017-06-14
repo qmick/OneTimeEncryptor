@@ -9,9 +9,7 @@
 #include <openssl/applink.c>
 
 
-using std::shared_ptr;
-
-CryptThread::CryptThread(shared_ptr<AsymmetricCryptor> cryptor,
+CryptThread::CryptThread(std::shared_ptr<AsymmetricCryptor> cryptor,
                              const QStringList &file_names)
     : cryptor(cryptor), file_names(file_names)
 {
@@ -48,7 +46,7 @@ void CryptThread::run() {
             try
             {
                 //If stop manually
-                if (cryptor->crypt_file(i.toStdString(), cb) < 0)
+                if (cryptor->crypt_file(std::string(i.toLocal8Bit().data()), cb) < 0)
                 {
                     emit file_stopped(i);
                     break;

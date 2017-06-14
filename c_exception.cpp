@@ -4,17 +4,21 @@
 #include <memory>
 
 
+using std::shared_ptr;
+using std::string;
+using std::default_delete;
+
 CException::CException()
 {
-    auto buf = std::shared_ptr<char>(new char[kMaxErrorStringLen + 1], std::default_delete<char[]>());
+    auto buf = shared_ptr<char>(new char[kMaxErrorStringLen + 1], default_delete<char[]>());
     strerror_s(buf.get(), kMaxErrorStringLen, errno);
     what_str = buf.get();
 }
 
 
-CException::CException(const std::string &msg)
+CException::CException(const string &msg)
 {
-    auto buf = std::shared_ptr<char>(new char[kMaxErrorStringLen + 1], std::default_delete<char[]>());
+    auto buf = shared_ptr<char>(new char[kMaxErrorStringLen + 1], default_delete<char[]>());
     strerror_s(buf.get(), kMaxErrorStringLen, errno);
     what_str = msg + buf.get();
 }

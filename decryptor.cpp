@@ -9,8 +9,11 @@
 
 
 using std::runtime_error;
+using std::string;
+using std::function;
+using std::exception;
 
-Decryptor::Decryptor(const std::string &master_prikey_pem, SecureBuffer &password)
+Decryptor::Decryptor(const string &master_prikey_pem, SecureBuffer &password)
 {
     shared_ptr<FILE> prikey_fp;
 
@@ -32,10 +35,10 @@ Decryptor::~Decryptor()
 
 }
 
-long long Decryptor::crypt_file(const std::string &filename, std::function<bool(long long)> callback)
+long long Decryptor::crypt_file(const string &filename, function<bool(long long)> callback)
 {
     //Decrypted file name
-    std::string plain_filename = filename.substr(0, filename.length() - kCryptSign.length());
+    string plain_filename = filename.substr(0, filename.length() - kCryptSign.length());
 
     //Session public key
     EVP_PKEY_ptr pub_key;
@@ -50,21 +53,11 @@ long long Decryptor::crypt_file(const std::string &filename, std::function<bool(
     long long plaintext_len = 0;
 
     //Open encrypted file
-    if (fopen_s(&cipher_fp, filename.c_str(), "r") != 0)
+    if (fopen_s(&cipher_fp, filename.c_str(), "rb") != 0)
         throw CException("cannot open: ");
 
-    //Remove decrypted file if exists
-    if (remove(plain_filename.c_str()) != 0)
-    {
-        if (errno != ENOENT)
-        {
-            fclose(cipher_fp);
-            throw CException("cannot remove: ");
-        }
-    }
-
     //Open decrypted file for writting(append)
-    if (fopen_s(&plain_fp, plain_filename.c_str(), "ab") != 0)
+    if (fopen_s(&plain_fp, plain_filename.c_str(), "wb") != 0)
     {
         fclose(cipher_fp);
         throw CException("cannot open: ");
@@ -89,16 +82,8 @@ long long Decryptor::crypt_file(const std::string &filename, std::function<bool(
     try
     {
         plaintext_len = cryptor.decrypt_file(plain_fp, cipher_fp, callback);
-
-        //Stop manually, remove incomplete decrypted file
-        if (plaintext_len < 0)
-        {
-            fclose(plain_fp);
-            plain_fp = NULL;
-            remove(plain_filename.c_str());
-        }
     }
-    catch (std::exception &e)
+    catch (exception &e)
     {
         fclose(plain_fp);
         fclose(cipher_fp);
@@ -106,9 +91,12 @@ long long Decryptor::crypt_file(const std::string &filename, std::function<bool(
         throw e;
     }
 
+    fclose(plain_fp);
     fclose(cipher_fp);
-    if (plain_fp)
-        fclose(plain_fp);
+
+    //Stop manually, remove incomplete decrypted file
+    if (plaintext_len < 0)
+        remove(plain_filename.c_str());
 
     return plaintext_len;
 }

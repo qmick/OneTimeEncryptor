@@ -8,7 +8,9 @@
 #include <cerrno>
 #include <QDebug>
 
+
 using std::runtime_error;
+using std::string;
 
 EVP_PKEY_ptr KeyGenerator::get_key_pair()
 {
@@ -61,7 +63,7 @@ SecureBuffer KeyGenerator::get_secret(const EVP_PKEY_ptr pkey,
     return secret;
 }
 
-bool KeyGenerator::save_private_key(const std::string &private_path, const EVP_PKEY_ptr private_key,
+bool KeyGenerator::save_private_key(const string &private_path, const EVP_PKEY_ptr private_key,
                                     SecureBuffer &password)
 {
     FILE *private_fp = NULL;
@@ -80,7 +82,7 @@ bool KeyGenerator::save_private_key(const std::string &private_path, const EVP_P
     return true;
 }
 
-bool KeyGenerator::save_public_key(const std::string &public_path, const EVP_PKEY_ptr public_key)
+bool KeyGenerator::save_public_key(const string &public_path, const EVP_PKEY_ptr public_key)
 {
     FILE *public_fp = NULL;
 
