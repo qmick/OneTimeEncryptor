@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include <cstdio>
 #include <QApplication>
 
 int main(int argc, char *argv[])
@@ -17,7 +18,7 @@ int main(int argc, char *argv[])
             m = MainWindow::DECRYPTION;
         else
         {
-            printf_s("Usage: OneTimeEncryptor [enc|dec] file1 file2...");
+            printf("Usage: OneTimeEncryptor [enc|dec] file1 file2...");
             return -1;
         }
 

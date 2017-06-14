@@ -16,6 +16,10 @@ install:
   - qmake -v
   - g++ -v
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> fcbaebb931d4909bee0c91f1727ee0d3f5631fe0
 
   
 script:

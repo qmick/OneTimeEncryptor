@@ -1,6 +1,6 @@
 #include "secure_memory.h"
 #include <openssl/crypto.h>
-
+#include <cstring>
 
 using std::string;
 
@@ -19,14 +19,14 @@ SecureBuffer::SecureBuffer(const byte *other, size_t n)
     : n(n)
 {
     buffer = new byte[n];
-    memmove_s(buffer, n, other, n);
+    memmove(buffer, other, n);
 }
 
 SecureBuffer::SecureBuffer(const string &str)
     : n(str.size() + 1)
 {
     buffer = new byte[n];
-    memmove_s(buffer, n, str.c_str(), n);
+    memmove(buffer, str.c_str(), n);
     buffer[n - 1] = '\0';
 }
 

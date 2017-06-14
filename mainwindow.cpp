@@ -16,6 +16,9 @@
 #include <QDebug>
 
 
+using std::make_unique;
+using std::make_shared;
+
 QString size_human(qint64 size)
 {
     double num = size;
@@ -34,21 +37,20 @@ QString size_human(qint64 size)
 }
 
 MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *parent)
-    : QMainWindow(parent), ui(new Ui::MainWindow)
+    : QMainWindow(parent), ui(make_unique<Ui::MainWindow>()),
+      progress_delegate(make_unique<ProgressDelegate>()),
+      progress_model(make_unique<ProgressTableModel>())
 {
     ui->setupUi(this);
     this->setWindowTitle(tr("OneTimeEncryptor"));
 
-    public_label = new QLabel(tr("Public key not loaded"));
-    private_label = new QLabel(tr("Private key not loaded"));
-    ui->statusBar->addWidget(public_label);
-    ui->statusBar->addWidget(private_label);
+    public_label.setText(tr("Public key not loaded"));
+    private_label.setText(tr("Private key not loaded"));
+    ui->statusBar->addWidget(&public_label);
+    ui->statusBar->addWidget(&private_label);
 
-    progress_delegate = new ProgressDelegate();
-    progress_model = new ProgressTableModel();
-
-    ui->tableView->setModel(progress_model);
-    ui->tableView->setItemDelegate(progress_delegate);
+    ui->tableView->setModel(progress_model.get());
+    ui->tableView->setItemDelegate(progress_delegate.get());
     emit progress_model->layoutChanged();
 
     public_path = "./public.pem";
@@ -75,7 +77,7 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
         //If command line args contains filenames, encrypt them automatically
         if (!files.isEmpty())
         {
-            crypt_thread = std::make_shared<CryptThread>(encryptor, files);
+            crypt_thread = std::make_unique<CryptThread>(encryptor, files);
             setup_progress(files);
             setup_thread();
             auto_close = true;
@@ -90,7 +92,7 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
         //If command line args contains filenames, decrypt them automatically
         if (!files.isEmpty())
         {
-            crypt_thread = std::make_shared<CryptThread>(decryptor, files);
+            crypt_thread = std::make_unique<CryptThread>(decryptor, files);
             setup_progress(files);
             setup_thread();
             auto_close = true;
@@ -107,11 +109,6 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
 
 MainWindow::~MainWindow()
 {
-    delete ui;
-    delete progress_delegate;
-    delete progress_model;
-    delete public_label;
-    delete private_label;
 }
 
 void MainWindow::setup_progress(const QStringList &files)
@@ -174,7 +171,7 @@ bool MainWindow::load_publickey()
         try
         {
             encryptor = std::make_shared<Encryptor>(public_path.toStdString());
-            public_label->setText(tr("Public key loaded"));
+            public_label.setText(tr("Public key loaded"));
             return true;
         }
         catch (const std::exception &e)
@@ -201,7 +198,7 @@ bool MainWindow::load_privatekey()
         {
             SecureBuffer password = SecureBuffer(text.toStdString());
             decryptor = std::make_shared<Decryptor>(private_path.toStdString(), password);
-            private_label->setText(tr("Private key loaded"));
+            private_label.setText(tr("Private key loaded"));
             return true;
         }
         catch (const std::exception &e)
@@ -268,8 +265,8 @@ void MainWindow::generate_key_clicked()
             KeyGenerator::save_private_key(private_path.toStdString(), key_pair, password);
             KeyGenerator::save_public_key(public_path.toStdString(), key_pair);
 
-            encryptor = std::make_shared<Encryptor>(public_path.toStdString());
-            decryptor = std::make_shared<Decryptor>(private_path.toStdString(), password);
+            encryptor = std::make_unique<Encryptor>(public_path.toStdString());
+            decryptor = std::make_unique<Decryptor>(private_path.toStdString(), password);
         }
         catch (std::exception &e)
         {
@@ -284,8 +281,8 @@ void MainWindow::generate_key_clicked()
         }
 
         //Update UI
-        private_label->setText(tr("Private key loaded"));
-        public_label->setText(tr("Public key loaded"));
+        private_label.setText(tr("Private key loaded"));
+        public_label.setText(tr("Public key loaded"));
     }
 }
 
@@ -305,7 +302,7 @@ void MainWindow::encrypt_clicked()
     if (dialog.exec())
     {
         auto files = dialog.selectedFiles();
-        crypt_thread = std::make_shared<CryptThread>(encryptor, files);
+        crypt_thread = std::make_unique<CryptThread>(encryptor, files);
 
         setup_progress(files);
         setup_thread();
@@ -328,7 +325,7 @@ void MainWindow::decrypt_clicked()
     {
         auto files = dialog.selectedFiles();
 
-        crypt_thread = std::make_shared<CryptThread>(decryptor, files);
+        crypt_thread = std::make_unique<CryptThread>(decryptor, files);
 
         setup_progress(files);
         setup_thread(); 

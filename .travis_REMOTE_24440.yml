@@ -1,0 +1,21 @@
+dist: trusty
+sudo: required
+
+install:
+  - sudo add-apt-repository ppa:beineri/opt-qt59-trusty -y
+  - sudo apt-get update
+  - sudo apt-get install qt-latest
+  - wget https://www.openssl.org/source/openssl-1.1.0f.tar.gz
+  - tar xzf openssl-1.1.0f.tar.gz
+  - cd openssl-1.1.0f
+  - ./config -Wl,--enable-new-dtags,-rpath,'$(LIBRPATH)'
+  - make>/dev/null
+  - sudo make install>/dev/null 2>&1
+  - cd ..
+
+
+
+script:
+  - qmake -project
+  - qmake OneTimeEncryptor.pro
+  - make

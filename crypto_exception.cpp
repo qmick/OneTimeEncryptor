@@ -3,12 +3,11 @@
 #include <memory>
 
 
-using std::shared_ptr;
-using std::default_delete;
+using std::make_unique;
 
 CryptoException::CryptoException()
 {
-    auto buf = shared_ptr<char>(new char[kMaxErrorStringLen + 1], default_delete<char[]>());
+    auto buf = make_unique<char[]>(kMaxErrorStringLen + 1);
     auto e = ERR_get_error();
     if (!e)
         return;

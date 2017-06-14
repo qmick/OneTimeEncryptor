@@ -17,7 +17,7 @@ install:
   - g++ -v
 
 
-  
+
 script:
   - qmake
   - make

@@ -6,8 +6,9 @@
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/conf.h>
+#ifdef _MSC_VER
 #include <openssl/applink.c>
-
+#endif
 
 CryptThread::CryptThread(std::shared_ptr<AsymmetricCryptor> cryptor,
                              const QStringList &file_names)

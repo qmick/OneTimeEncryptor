@@ -35,7 +35,7 @@ public:
     ~MainWindow();
 
 private:
-    Ui::MainWindow *ui;
+    std::unique_ptr<Ui::MainWindow> ui;
 
     //Path to public and private key pem file
     QString public_path;
@@ -43,17 +43,17 @@ private:
 
     std::shared_ptr<Encryptor> encryptor;
     std::shared_ptr<Decryptor> decryptor;
-    std::shared_ptr<CryptThread> crypt_thread;
+    std::unique_ptr<CryptThread> crypt_thread;
     QTimer timer;
     QTime time_record;
     int count;
     bool auto_close;
 
     //UI
-    ProgressDelegate *progress_delegate;
-    ProgressTableModel *progress_model;
-    QLabel *public_label;
-    QLabel *private_label;
+    std::unique_ptr<ProgressDelegate> progress_delegate;
+    std::unique_ptr<ProgressTableModel> progress_model;
+    QLabel public_label;
+    QLabel private_label;
 
     //Find place of file progress by its name
     QHash<QString, int> file_no;

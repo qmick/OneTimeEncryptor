@@ -69,7 +69,8 @@ bool KeyGenerator::save_private_key(const string &private_path, const EVP_PKEY_p
     FILE *private_fp = NULL;
 
     //Open file for writing pem private key
-    if (fopen_s(&private_fp, private_path.c_str(), "w") != 0)
+    private_fp = fopen(private_path.c_str(), "w");
+    if (!private_fp)
         throw CException();
 
     if (!PEM_write_PrivateKey(private_fp, private_key.get(), EVP_aes_256_cbc(), password.get(),
@@ -87,7 +88,8 @@ bool KeyGenerator::save_public_key(const string &public_path, const EVP_PKEY_ptr
     FILE *public_fp = NULL;
 
     //Open file for writing pem public key
-    if (fopen_s(&public_fp, public_path.c_str(), "w") != 0)
+    public_fp = fopen(public_path.c_str(), "w");
+    if (!public_fp)
         throw CException();
 
     if (!PEM_write_PUBKEY(public_fp, public_key.get()))

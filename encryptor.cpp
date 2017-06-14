@@ -11,25 +11,25 @@
 #include <openssl/pem.h>
 
 using std::string;
-using std::shared_ptr;
 using std::runtime_error;
 using std::exception;
 using std::function;
 
 Encryptor::Encryptor(const string &master_pubkey_pem)
 {
-    shared_ptr<FILE> pubkey_fp;
+    FILE *pubkey_fp;
 
     //Open pem file that contains master private ec key
-    FILE *tmp;
-    if (fopen_s(&tmp, master_pubkey_pem.c_str(), "r") != 0)
+    pubkey_fp = fopen(master_pubkey_pem.c_str(), "r");
+    if (!pubkey_fp)
         throw CException("cannot open private key file: ");
-    pubkey_fp = shared_ptr<FILE>(tmp, ::fclose);
 
     //Read master private key from file
-    auto ret = PEM_read_PUBKEY(pubkey_fp.get(), NULL, NULL, NULL);
+    auto ret = PEM_read_PUBKEY(pubkey_fp, NULL, NULL, NULL);
+    fclose(pubkey_fp);
     if (ret == NULL)
         throw CryptoException();
+
     master_key = EVP_PKEY_ptr(ret, ::EVP_PKEY_free);
 }
 
@@ -52,11 +52,13 @@ long long Encryptor::crypt_file(const string &filename, function<bool(long long)
     SymmetricCryptor cryptor(secret);
 
     //Open source file for reading
-    if (fopen_s(&plain_fp, filename.c_str(), "rb") != 0)
+    plain_fp = fopen(filename.c_str(), "rb");
+    if (!plain_fp)
         throw CException("cannot open: ");
 
     //Open dst file for writing
-    if (fopen_s(&cipher_fp, cipher_filename.c_str(), "wb") != 0)
+    cipher_fp = fopen(cipher_filename.c_str(), "wb");
+    if (!cipher_fp)
     {
         fclose(plain_fp);
         throw CException("cannot open: ");
@@ -88,9 +90,7 @@ long long Encryptor::crypt_file(const string &filename, function<bool(long long)
 
     //Stop manually, remove incomplete encrypted file
     if (ciphertext_len < 0)
-    {
         remove(cipher_filename.c_str());
-    }
 
     return ciphertext_len;
 }
