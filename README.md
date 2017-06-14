@@ -1,7 +1,7 @@
 # OneTimeEncryptor
 ![Build Status](https://travis-ci.org/qmick/OneTimeEncryptor.svg?branch=master)
 
-一个利用ECDH来做文件加密的小程序
+一个利用ECDH来做文件加密的小程序，一次产生密钥，此后加密无需密码，支持重设密码
 
 ## 使用
 
@@ -19,8 +19,6 @@
 
 `dec` 参数是指以解密模式打开程序，在该模式下只会加载私钥，自动解密file1 file2 file3...，然后自动退出。
 
-A small application using ECDH([Elliptic curve Diffie–Hellman](https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman)) for file encryption.
-
 
 ## 编译
 ### 环境要求
@@ -35,6 +33,10 @@ OpenSSL版本: OpenSSL v1.1.0或更高。[Win32 OpenSSL v1.1.0f](https://slprowe
 2. 打开 `OneTimeEncryptor.pro`
 3. 修改 `INCLUDEPATH +=` 和  `LIBS +=` 到OpenSSL的实际位置
 4. qmake && make 或者用QtCreator打开项目编译
+
+# OneTimeEncryptor
+
+A small application using ECDH([Elliptic curve Diffie–Hellman](https://en.wikipedia.org/wiki/Elliptic_curve_Diffie%E2%80%93Hellman)) for file encryption. Once key pair generated, encryption need no password and support password reset.
 
 ## Usage
 
