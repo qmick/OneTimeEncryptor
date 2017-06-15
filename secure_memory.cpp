@@ -63,6 +63,18 @@ const byte &SecureBuffer::operator[](size_t n) const
     return buffer[n];
 }
 
+void SecureBuffer::resize(size_t n)
+{
+    if (n > this->n)
+    {
+        OPENSSL_cleanse(buffer, n*sizeof(byte));
+        delete []buffer;
+        buffer = new byte[n];
+    }
+    else
+        this->n = n;
+}
+
 byte* SecureBuffer::get()
 {
     return buffer;

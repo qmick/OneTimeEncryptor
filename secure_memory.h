@@ -33,6 +33,8 @@ public:
     byte &operator[](size_t n);
     const byte &operator[](size_t n) const;
 
+    void resize(size_t n);
+
     //Get raw pointer to buffer zone
     byte* get();
     const byte* get() const;

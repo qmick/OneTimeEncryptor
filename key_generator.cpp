@@ -30,6 +30,27 @@ EVP_PKEY_ptr KeyGenerator::get_key_pair()
     return EVP_PKEY_ptr(tmp, ::EVP_PKEY_free);
 }
 
+EVP_PKEY_ptr KeyGenerator::get_rsa_key_pair()
+{
+    EVP_PKEY_CTX_ptr ctx;
+    EVP_PKEY_ptr pkey;
+    auto ret = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
+    if (!ret)
+        throw CryptoException();
+    ctx = EVP_PKEY_CTX_ptr(ret, ::EVP_PKEY_CTX_free);
+
+    if (EVP_PKEY_keygen_init(ctx.get()) <= 0)
+        throw CryptoException();
+    if (EVP_PKEY_CTX_set_rsa_keygen_bits(ctx.get(), 2048) <= 0)
+        throw CryptoException();
+
+    /* Generate key */
+    EVP_PKEY *tmp = NULL;
+    if (EVP_PKEY_keygen(ctx.get(), &tmp) != 1)
+        throw CryptoException();
+    return EVP_PKEY_ptr(tmp, ::EVP_PKEY_free);
+}
+
 SecureBuffer KeyGenerator::get_secret(const EVP_PKEY_ptr pkey,
                                       const EVP_PKEY_ptr peerkey)
 {

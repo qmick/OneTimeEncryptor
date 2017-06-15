@@ -13,6 +13,8 @@ public:
      */
     static EVP_PKEY_ptr get_key_pair();
 
+    static EVP_PKEY_ptr get_rsa_key_pair();
+
     /**
      * @brief Get secret using ECDH
      * @param pkey master private key or session private
