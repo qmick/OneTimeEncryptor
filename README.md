@@ -1,5 +1,5 @@
 # OneTimeEncryptor
-![Build Status](https://travis-ci.org/qmick/OneTimeEncryptor.svg?branch=master)
+[![Build Status](https://travis-ci.org/qmick/OneTimeEncryptor.svg?branch=master)](https://travis-ci.org/qmick/OneTimeEncryptor)
 
 一个利用ECDH来做文件加密的小程序，一次产生密钥，此后加密无需密码，支持重设密码
 
