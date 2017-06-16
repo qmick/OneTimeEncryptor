@@ -8,17 +8,37 @@ using std::function;
 using std::runtime_error;
 
 SymmetricCryptor::SymmetricCryptor()
+    : symmetric_cipher(EVP_aes_256_cbc())
+{
+}
+
+SymmetricCryptor::SymmetricCryptor(const EVP_CIPHER *cipher)
+    : symmetric_cipher(cipher)
 {
 }
 
 SymmetricCryptor::SymmetricCryptor(SecureBuffer &secret)
+    : symmetric_cipher(EVP_aes_256_cbc())
 {
     key = SecureBuffer(EVP_MAX_KEY_LENGTH);
     iv = SecureBuffer(EVP_MAX_IV_LENGTH);
 
     //Derive aes key from secret. EVP_ByteTokey() is used to derive key from password,
     //the security of using it on secret is not clear
-    if (0 == EVP_BytesToKey(EVP_aes_256_cbc(), EVP_sha256(), NULL, secret.get(),
+    if (0 == EVP_BytesToKey(symmetric_cipher, EVP_sha256(), NULL, secret.get(),
+                            static_cast<int>(secret.size()), 1, key.get(), iv.get()))
+        throw CryptoException();
+}
+
+SymmetricCryptor::SymmetricCryptor(SecureBuffer &secret, const EVP_CIPHER *cipher)
+    : symmetric_cipher(cipher)
+{
+    key = SecureBuffer(EVP_MAX_KEY_LENGTH);
+    iv = SecureBuffer(EVP_MAX_IV_LENGTH);
+
+    //Derive aes key from secret. EVP_ByteTokey() is used to derive key from password,
+    //the security of using it on secret is not clear
+    if (0 == EVP_BytesToKey(symmetric_cipher, EVP_sha256(), NULL, secret.get(),
                             static_cast<int>(secret.size()), 1, key.get(), iv.get()))
         throw CryptoException();
 }
@@ -45,7 +65,7 @@ long long SymmetricCryptor::encrypt_file(FILE *dst, FILE *src, function<bool(lon
     * In this example we are using 256 bit AES (i.e. a 256 bit key). The
     * IV size for *most* modes is the same as the block size. For AES this
     * is 128 bits */
-    if (1 != EVP_EncryptInit_ex(ctx.get(), EVP_aes_256_cbc(), NULL, key.get(), iv.get()))
+    if (1 != EVP_EncryptInit_ex(ctx.get(), symmetric_cipher, NULL, key.get(), iv.get()))
         throw CryptoException();
 
     //Work until EOF
@@ -102,7 +122,7 @@ long long SymmetricCryptor::decrypt_file(FILE *dst, FILE *src, function<bool(lon
     long long plain_len = 0;
     int block_len = 0;
 
-    if (1 != EVP_DecryptInit_ex(ctx.get(), EVP_aes_256_cbc(), NULL, key.get(), iv.get()))
+    if (1 != EVP_DecryptInit_ex(ctx.get(), symmetric_cipher, NULL, key.get(), iv.get()))
         throw CryptoException();
 
     while (!feof(src))
@@ -161,7 +181,7 @@ long long SymmetricCryptor::seal_file(FILE *dst, FILE *src, EVP_PKEY_ptr pubk,
     * is 128 bits */
     auto tmp_key = key.get();
     auto tmp_pubk = pubk.get();
-    if (1 != EVP_SealInit(ctx.get(), EVP_aes_256_cbc(), &tmp_key, &key_len, iv.get(), &tmp_pubk, 1))
+    if (1 != EVP_SealInit(ctx.get(), symmetric_cipher, &tmp_key, &key_len, iv.get(), &tmp_pubk, 1))
         throw CryptoException();
     key.resize(static_cast<size_t>(key_len));
 
@@ -239,7 +259,7 @@ long long SymmetricCryptor::open_file(FILE *dst, FILE *src, EVP_PKEY_ptr priv,
     if (iv_len != fread(iv.get(), 1, iv_len, src))
         throw runtime_error("cannot read iv");
 
-    if (1 != EVP_OpenInit(ctx.get(), EVP_aes_256_cbc(), key.get(),
+    if (1 != EVP_OpenInit(ctx.get(), symmetric_cipher, key.get(),
                           static_cast<int>(key.size()), iv.get(), priv.get()))
         throw CryptoException();
 
@@ -270,3 +290,9 @@ long long SymmetricCryptor::open_file(FILE *dst, FILE *src, EVP_PKEY_ptr priv,
 
     return plain_len;
 }
+
+const EVP_CIPHER *SymmetricCryptor::get_cipher() const
+{
+    return symmetric_cipher;
+}
+

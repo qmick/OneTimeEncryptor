@@ -15,7 +15,9 @@ public:
     SecureBuffer iv;
 
     SymmetricCryptor();
+    explicit SymmetricCryptor(const EVP_CIPHER *cipher);
     explicit SymmetricCryptor(SecureBuffer &secret);
+    SymmetricCryptor(SecureBuffer &secret, const EVP_CIPHER *cipher);
 
     /**
      * @brief Read data from `src` and write encrypted data to `dst`
@@ -32,7 +34,10 @@ public:
     long long open_file(FILE *dst, FILE *src, EVP_PKEY_ptr priv,
                         std::function<bool(long long)> callback);
 
+    const EVP_CIPHER *get_cipher() const;
 
+private:
+    const EVP_CIPHER *symmetric_cipher;
 };
 
 #endif // CRYPTOR_H
