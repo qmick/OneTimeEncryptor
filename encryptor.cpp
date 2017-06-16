@@ -21,18 +21,11 @@ using std::make_unique;
 
 Encryptor::Encryptor(const string &master_pubkey_pem)
 {
-    FILE *pubkey_fp;
-
     //Open pem file that contains master private ec key
-    pubkey_fp = fopen(master_pubkey_pem.c_str(), "r");
-    if (!pubkey_fp)
-        throw CException("cannot open private key file");
+    CryptoIO in(master_pubkey_pem, "r");
 
     //Read master private key from file
-    auto ret = PEM_read_PUBKEY(pubkey_fp, NULL, NULL, NULL);
-    fclose(pubkey_fp);
-    if (ret == NULL)
-        throw CryptoException();
+    auto ret = PEM_read_PUBKEY(in.get(), NULL, NULL, NULL);
 
     master_key = EVP_PKEY_ptr(ret, ::EVP_PKEY_free);
 }
@@ -46,23 +39,15 @@ Encryptor::~Encryptor()
 int64_t Encryptor::crypt_file(const string &filename, function<bool(int64_t)> callback)
 {
     EVP_CIPHER_CTX_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
-    FILE *plain_fp = NULL, *cipher_fp = NULL;
     string cipher_filename = filename + kCryptSign;
     int64_t ciphertext_len = 0;
     unique_ptr<SymmetricCryptor> cryptor;
 
     //Open source file for reading
-    plain_fp = fopen(filename.c_str(), "rb");
-    if (!plain_fp)
-        throw CException("cannot open");
+    CryptoIO src(filename, "rb");
 
     //Open dst file for writing
-    cipher_fp = fopen(cipher_filename.c_str(), "wb");
-    if (!cipher_fp)
-    {
-        fclose(plain_fp);
-        throw CException("cannot open");
-    }
+    CryptoIO dst(cipher_filename, "wb");
 
     auto key_type = EVP_PKEY_id(master_key.get());
     if (key_type == EVP_PKEY_RSA)
@@ -71,13 +56,11 @@ int64_t Encryptor::crypt_file(const string &filename, function<bool(int64_t)> ca
 
         try
         {
-            ciphertext_len = cryptor->seal_file(cipher_fp, plain_fp, master_key, callback);
+            ciphertext_len = cryptor->seal_file(dst, src, master_key, callback);
         }
         catch (exception &)
         {
-            fclose(plain_fp);
-            fclose(cipher_fp);
-            remove(cipher_filename.c_str());
+            dst.remove();
             throw;
         }
     }
@@ -89,40 +72,31 @@ int64_t Encryptor::crypt_file(const string &filename, function<bool(int64_t)> ca
         cryptor = make_unique<SymmetricCryptor>(secret);
 
         //Write session publick key to file header
-        if (!PEM_write_PUBKEY(cipher_fp, key_pair.get()))
+        if (!PEM_write_PUBKEY(dst.get(), key_pair.get()))
         {
-            fclose(plain_fp);
-            fclose(cipher_fp);
-            remove(cipher_filename.c_str());
+            dst.remove();
             throw CryptoException();
         }
 
         try
         {
-            ciphertext_len = cryptor->encrypt_file(cipher_fp, plain_fp, callback);
+            ciphertext_len = cryptor->encrypt_file(dst, src, callback);
         }
         catch (exception &)
         {
-            fclose(plain_fp);
-            fclose(cipher_fp);
-            remove(cipher_filename.c_str());
+            dst.remove();
             throw;
         }
     }
     else
     {
-        fclose(plain_fp);
-        fclose(cipher_fp);
-        remove(cipher_filename.c_str());
+        dst.remove();
         throw runtime_error("not valid key type");
     }
 
-    fclose(plain_fp);
-    fclose(cipher_fp);
-
     //Stop manually, remove incomplete encrypted file
     if (ciphertext_len < 0)
-        remove(cipher_filename.c_str());
+        dst.remove();
 
     return ciphertext_len;
 }

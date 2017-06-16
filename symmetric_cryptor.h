@@ -2,6 +2,7 @@
 #define CRYPTOR_H
 
 #include "secure_memory.h"
+#include "crypto_io.h"
 #include <cstdio>
 #include <cstdint>
 #include <functional>
@@ -27,12 +28,12 @@ public:
      * @param callback Callback used to send progress and recieve stop signal
      * @return Encrypted data size, -1 if stop by callback
      */
-    int64_t encrypt_file(FILE *dst, FILE *src, std::function<bool(int64_t)> callback);
-    int64_t decrypt_file(FILE *dst, FILE *src, std::function<bool(int64_t)> callback);
+    int64_t encrypt_file(CryptoIO &dst, CryptoIO &src, std::function<bool(int64_t)> callback);
+    int64_t decrypt_file(CryptoIO &dst, CryptoIO &src, std::function<bool(int64_t)> callback);
 
-    int64_t seal_file(FILE *dst, FILE *src, EVP_PKEY_ptr pubk,
+    int64_t seal_file(CryptoIO &dst, CryptoIO &src, EVP_PKEY_ptr pubk,
                         std::function<bool(int64_t)> callback);
-    int64_t open_file(FILE *dst, FILE *src, EVP_PKEY_ptr priv,
+    int64_t open_file(CryptoIO &dst, CryptoIO &src, EVP_PKEY_ptr priv,
                         std::function<bool(int64_t)> callback);
 
     const EVP_CIPHER *get_cipher() const;

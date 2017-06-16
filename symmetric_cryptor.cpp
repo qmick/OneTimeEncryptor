@@ -1,4 +1,5 @@
 #include "symmetric_cryptor.h"
+#include "crypto_io.h"
 #include "crypto_exception.h"
 #include "c_exception.h"
 #include <openssl/evp.h>
@@ -44,7 +45,7 @@ SymmetricCryptor::SymmetricCryptor(SecureBuffer &secret, const EVP_CIPHER *ciphe
 }
 
 
-int64_t SymmetricCryptor::encrypt_file(FILE *dst, FILE *src, function<bool(int64_t)> callback)
+int64_t SymmetricCryptor::encrypt_file(CryptoIO &dst, CryptoIO &src, function<bool(int64_t)> callback)
 {
     //Buffer to place read data
     auto in_buf = SecureBuffer(kMaxInBufferSize);
@@ -55,26 +56,21 @@ int64_t SymmetricCryptor::encrypt_file(FILE *dst, FILE *src, function<bool(int64
     //Total data length write
     int64_t cipher_len = 0;
 
-    //Data length of 1 update cycle
-    int block_len = 0;
+    //Output data length of every EVP_EncryptUpdate() call
+    auto block_len = 0;
 
     EVP_CIPHER_CTX_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
 
     /* Initialise the encryption operation. IMPORTANT - ensure you use a key
-    * and IV size appropriate for your cipher
-    * In this example we are using 256 bit AES (i.e. a 256 bit key). The
-    * IV size for *most* modes is the same as the block size. For AES this
-    * is 128 bits */
+    * and IV size appropriate for your cipher */
     if (1 != EVP_EncryptInit_ex(ctx.get(), symmetric_cipher, NULL, key.get(), iv.get()))
         throw CryptoException();
 
     //Work until EOF
-    while (!feof(src))
+    while (!src.eof())
     {
         //Read kMaxInBufferSize data for src file
-        auto plain_len = fread(in_buf.get(), 1, kMaxInBufferSize, src);
-        if (ferror(src))
-            throw runtime_error("cannot read from file");
+        auto plain_len = src.read(in_buf.get(), 1, kMaxInBufferSize);
 
         /* Provide the message to be encrypted, and obtain the encrypted output.
         * EVP_EncryptUpdate can be called multiple times if necessary
@@ -83,9 +79,7 @@ int64_t SymmetricCryptor::encrypt_file(FILE *dst, FILE *src, function<bool(int64
             throw CryptoException();
 
         //Write encrypted data to file
-        fwrite(out_buf.get(), 1, static_cast<unsigned int>(block_len), dst);
-        if (ferror(dst))
-            throw runtime_error("cannot write file");
+        dst.write(out_buf.get(), 1, static_cast<unsigned int>(block_len));
         cipher_len += block_len;
 
         //If asked to stop, then stop and return
@@ -100,9 +94,7 @@ int64_t SymmetricCryptor::encrypt_file(FILE *dst, FILE *src, function<bool(int64
     //Something still need to be written
     if (block_len > 0)
     {
-        fwrite(out_buf.get(), 1, static_cast<unsigned int>(block_len), dst);
-        if (ferror(dst))
-            throw runtime_error("cannot write file");
+        dst.write(out_buf.get(), 1, static_cast<unsigned int>(block_len));
         cipher_len += block_len;
     }
 
@@ -114,25 +106,23 @@ int64_t SymmetricCryptor::encrypt_file(FILE *dst, FILE *src, function<bool(int64
 
 
 //Almost the same as encryption
-int64_t SymmetricCryptor::decrypt_file(FILE *dst, FILE *src, function<bool(int64_t)> callback)
+int64_t SymmetricCryptor::decrypt_file(CryptoIO &dst, CryptoIO &src, function<bool(int64_t)> callback)
 {
     auto in_buf = SecureBuffer(kMaxInBufferSize);
     auto out_buf = SecureBuffer(kMaxOutBufferSize);
+    auto block_len = 0;
     EVP_CIPHER_CTX_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
     int64_t plain_len = 0;
-    int block_len = 0;
 
     if (1 != EVP_DecryptInit_ex(ctx.get(), symmetric_cipher, NULL, key.get(), iv.get()))
         throw CryptoException();
 
-    while (!feof(src))
+    while (!src.eof())
     {
-        auto cipher_len = fread(in_buf.get(), 1, kMaxInBufferSize, src);
+        auto cipher_len = src.read(in_buf.get(), 1, kMaxInBufferSize);
         if (1 != EVP_DecryptUpdate(ctx.get(), out_buf.get(), &block_len, in_buf.get(), static_cast<int>(cipher_len)))
             throw CryptoException();
-        fwrite(out_buf.get(), 1, static_cast<size_t>(block_len), dst);
-        if (ferror(dst))
-            throw runtime_error("cannot write file");
+        dst.write(out_buf.get(), 1, static_cast<size_t>(block_len));
         plain_len += block_len;
         if (!callback(plain_len))
             return -1;
@@ -142,9 +132,7 @@ int64_t SymmetricCryptor::decrypt_file(FILE *dst, FILE *src, function<bool(int64
         throw CryptoException();
     if (block_len > 0)
     {
-        fwrite(out_buf.get(), 1, static_cast<size_t>(block_len), dst);
-        if (ferror(dst))
-            throw runtime_error("cannot write file");
+        dst.write(out_buf.get(), 1, static_cast<size_t>(block_len));
         plain_len += block_len;
     }
     if (!callback(plain_len))
@@ -153,7 +141,7 @@ int64_t SymmetricCryptor::decrypt_file(FILE *dst, FILE *src, function<bool(int64
     return plain_len;
 }
 
-int64_t SymmetricCryptor::seal_file(FILE *dst, FILE *src, EVP_PKEY_ptr pubk,
+int64_t SymmetricCryptor::seal_file(CryptoIO &dst, CryptoIO &src, EVP_PKEY_ptr pubk,
                                       std::function<bool (int64_t)> callback)
 {
     //Buffer to place read data
@@ -185,20 +173,15 @@ int64_t SymmetricCryptor::seal_file(FILE *dst, FILE *src, EVP_PKEY_ptr pubk,
         throw CryptoException();
     key.resize(static_cast<size_t>(key_len));
 
-    if (1 != fwrite(&key_len, sizeof(key_len), 1, dst))
-        throw CException("cannot write key length");
-    if (key.size() != fwrite(key.get(), 1, key.size(), dst))
-        throw CException("cannot write key");
-    if (iv.size() != fwrite(iv.get(), 1, iv.size(), dst))
-        throw CException("cannot write iv");
+    dst.write(&key_len, sizeof(key_len), 1);
+    dst.write(key.get(), 1, key.size());
+    dst.write(iv.get(), 1, iv.size());
 
     //Work until EOF
-    while (!feof(src))
+    while (!src.eof())
     {
         //Read kMaxInBufferSize data for src file
-        auto plain_len = fread(in_buf.get(), 1, kMaxInBufferSize, src);
-        if (ferror(src))
-            throw CException("cannot read from file");
+        auto plain_len = src.read(in_buf.get(), 1, kMaxInBufferSize);
 
         /* Provide the message to be encrypted, and obtain the encrypted output.
         * EVP_EncryptUpdate can be called multiple times if necessary
@@ -207,9 +190,7 @@ int64_t SymmetricCryptor::seal_file(FILE *dst, FILE *src, EVP_PKEY_ptr pubk,
             throw CryptoException();
 
         //Write encrypted data to file
-        fwrite(out_buf.get(), 1, static_cast<unsigned int>(block_len), dst);
-        if (ferror(dst))
-            throw CException("cannot write file");
+        dst.write(out_buf.get(), 1, static_cast<unsigned int>(block_len));
         cipher_len += block_len;
 
         //If asked to stop, then stop and return
@@ -224,9 +205,7 @@ int64_t SymmetricCryptor::seal_file(FILE *dst, FILE *src, EVP_PKEY_ptr pubk,
     //Something still need to be written
     if (block_len > 0)
     {
-        fwrite(out_buf.get(), 1, static_cast<unsigned int>(block_len), dst);
-        if (ferror(dst))
-            throw runtime_error("cannot write file");
+        dst.write(out_buf.get(), 1, static_cast<unsigned int>(block_len));
         cipher_len += block_len;
     }
 
@@ -236,7 +215,7 @@ int64_t SymmetricCryptor::seal_file(FILE *dst, FILE *src, EVP_PKEY_ptr pubk,
     return cipher_len;
 }
 
-int64_t SymmetricCryptor::open_file(FILE *dst, FILE *src, EVP_PKEY_ptr priv,
+int64_t SymmetricCryptor::open_file(CryptoIO &dst, CryptoIO &src, EVP_PKEY_ptr priv,
                                       std::function<bool (int64_t)> callback)
 {
     auto in_buf = SecureBuffer(kMaxInBufferSize);
@@ -250,27 +229,22 @@ int64_t SymmetricCryptor::open_file(FILE *dst, FILE *src, EVP_PKEY_ptr priv,
     key = SecureBuffer(static_cast<size_t>(EVP_PKEY_size(priv.get())));
     iv = SecureBuffer(iv_len);
 
-    if (1 != fread(&key_len, sizeof(key_len), 1, src))
-        throw runtime_error("cannot read key length");
+    src.read(&key_len, sizeof(key_len), 1);
     key.resize(key_len);
 
-    if (key_len != fread(key.get(), 1, key_len, src))
-        throw runtime_error("cannot read key");
-    if (iv_len != fread(iv.get(), 1, iv_len, src))
-        throw runtime_error("cannot read iv");
+    src.read(key.get(), 1, key_len);
+    src.read(iv.get(), 1, iv_len);
 
     if (1 != EVP_OpenInit(ctx.get(), symmetric_cipher, key.get(),
                           static_cast<int>(key.size()), iv.get(), priv.get()))
         throw CryptoException();
 
-    while (!feof(src))
+    while (!src.eof())
     {
-        auto cipher_len = fread(in_buf.get(), 1, kMaxInBufferSize, src);
+        auto cipher_len = src.read(in_buf.get(), 1, kMaxInBufferSize);
         if (1 != EVP_OpenUpdate(ctx.get(), out_buf.get(), &block_len, in_buf.get(), static_cast<int>(cipher_len)))
             throw CryptoException();
-        fwrite(out_buf.get(), 1, static_cast<size_t>(block_len), dst);
-        if (ferror(dst))
-            throw runtime_error("cannot write file");
+        dst.write(out_buf.get(), 1, static_cast<size_t>(block_len));
         plain_len += block_len;
         if (!callback(plain_len))
             return -1;
@@ -280,9 +254,7 @@ int64_t SymmetricCryptor::open_file(FILE *dst, FILE *src, EVP_PKEY_ptr priv,
         throw CryptoException();
     if (block_len > 0)
     {
-        fwrite(out_buf.get(), 1, static_cast<size_t>(block_len), dst);
-        if (ferror(dst))
-            throw runtime_error("cannot write file");
+        dst.write(out_buf.get(), 1, static_cast<size_t>(block_len));
         plain_len += block_len;
     }
     if (!callback(plain_len))

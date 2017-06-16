@@ -1,5 +1,6 @@
 #include "decryptor.h"
 #include "crypto_exception.h"
+#include "crypto_io.h"
 #include "key_generator.h"
 #include "symmetric_cryptor.h"
 #include "c_exception.h"
@@ -17,16 +18,11 @@ using std::make_unique;
 
 Decryptor::Decryptor(const string &master_prikey_pem, SecureBuffer &password)
 {
-    FILE *prikey_fp;
-
     //Open pem file that contains master private ec key
-    prikey_fp = fopen(master_prikey_pem.c_str(), "r");
-    if (!prikey_fp)
-        throw CException("cannot open private key file");
+    CryptoIO in(master_prikey_pem, "r");
 
     //Read master private key from file
-    auto ret = PEM_read_PrivateKey(prikey_fp, NULL, NULL, password.get());
-    fclose(prikey_fp);
+    auto ret = PEM_read_PrivateKey(in.get(), NULL, NULL, password.get());
     if (ret == NULL)
         throw CryptoException();
 
@@ -50,24 +46,17 @@ int64_t Decryptor::crypt_file(const string &filename, function<bool(int64_t)> ca
     SecureBuffer secret;
 
     EVP_CIPHER_CTX_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
-    FILE *cipher_fp = NULL, *plain_fp = NULL;
 
     unique_ptr<SymmetricCryptor> cryptor;
+
     //Decrypted data size
     int64_t plaintext_len = 0;
 
     //Open encrypted file
-    cipher_fp = fopen(filename.c_str(), "rb");
-    if (!cipher_fp)
-        throw CException("cannot open");
+    CryptoIO src(filename, "rb");
 
     //Open decrypted file for writting(append)
-    plain_fp = fopen(plain_filename.c_str(), "wb");
-    if (!plain_fp)
-    {
-        fclose(cipher_fp);
-        throw CException("cannot open");
-    }
+    CryptoIO dst(plain_filename, "wb");
 
     auto key_type = EVP_PKEY_id(master_key.get());
     if (key_type == EVP_PKEY_RSA)
@@ -76,26 +65,20 @@ int64_t Decryptor::crypt_file(const string &filename, function<bool(int64_t)> ca
 
         try
         {
-            plaintext_len = cryptor->open_file(plain_fp, cipher_fp, master_key, callback);
+            plaintext_len = cryptor->open_file(dst, src, master_key, callback);
         }
         catch (exception &)
         {
-            fclose(plain_fp);
-            fclose(cipher_fp);
-            remove(plain_filename.c_str());
+            dst.remove();
             throw;
         }
     }
     else if (key_type == EVP_PKEY_EC || key_type == NID_X25519)
     {
         //Read session public key from header of encrypted file
-        auto ret = PEM_read_PUBKEY(cipher_fp, NULL, NULL, NULL);
+        auto ret = PEM_read_PUBKEY(src.get(), NULL, NULL, NULL);
         if (!ret)
-        {
-            fclose(cipher_fp);
-            fclose(plain_fp);
             throw CryptoException();
-        }
         pub_key = EVP_PKEY_ptr(ret, ::EVP_PKEY_free);
 
         //ECDH
@@ -106,31 +89,25 @@ int64_t Decryptor::crypt_file(const string &filename, function<bool(int64_t)> ca
 
         try
         {
-            plaintext_len = cryptor->decrypt_file(plain_fp, cipher_fp, callback);
+            plaintext_len = cryptor->decrypt_file(dst, src, callback);
         }
         catch (exception &)
         {
-            fclose(plain_fp);
-            fclose(cipher_fp);
-            remove(plain_filename.c_str());
+            dst.remove();
             throw;
         }
     }
     else
     {
-        fclose(plain_fp);
-        fclose(cipher_fp);
-        remove(plain_filename.c_str());
+        dst.remove();
         throw runtime_error("not valid key type");
     }
 
-
-    fclose(plain_fp);
-    fclose(cipher_fp);
-
     //Stop manually, remove incomplete decrypted file
     if (plaintext_len < 0)
-        remove(plain_filename.c_str());
+    {
+        dst.remove();
+    }
 
     return plaintext_len;
 }
