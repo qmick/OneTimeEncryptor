@@ -1,7 +1,7 @@
 # OneTimeEncryptor
 [![Build Status](https://travis-ci.org/qmick/OneTimeEncryptor.svg?branch=master)](https://travis-ci.org/qmick/OneTimeEncryptor)
 
-一个利用ECDH来做文件加密的小程序，一次产生密钥，此后加密无需密码，支持重设密码
+一个利用公钥加密来做文件加密的小程序，一次产生密钥，此后加密无需密码，支持重设密码
 
 ## 使用
 
@@ -24,7 +24,7 @@
 ### 环境要求
 编译器: G++4.9或更高。G++4.9.4 和 Visual Studio 2015 update 3 已经过测试
 
-Qt版本: Qt 5.0或更高。Qt 5.2.1 Linux and Qt 5.9 MSVC2015 32bit 已经过测试
+Qt版本: Qt 5.0或更高。Qt 5.2.1 Linux 和 Qt 5.9 MSVC2015 32bit 已经过测试
 
 OpenSSL版本: OpenSSL v1.1.0或更高。[Win32 OpenSSL v1.1.0f](https://slproweb.com/download/Win32OpenSSL-1_1_0f.exe) 已经过测试
 
