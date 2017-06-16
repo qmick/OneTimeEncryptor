@@ -1,9 +1,15 @@
 #include "symmetric_cryptor.h"
 #include "crypto_exception.h"
+#include "c_exception.h"
 #include <openssl/evp.h>
+#include <QDebug>
 
 using std::function;
 using std::runtime_error;
+
+SymmetricCryptor::SymmetricCryptor()
+{
+}
 
 SymmetricCryptor::SymmetricCryptor(SecureBuffer &secret)
 {
@@ -145,7 +151,8 @@ long long SymmetricCryptor::seal_file(FILE *dst, FILE *src, EVP_PKEY_ptr pubk,
     EVP_CIPHER_CTX_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
 
     int key_len = 0;
-    size_t iv_len = static_cast<size_t>(EVP_CIPHER_iv_length(EVP_aes_256_cbc()));
+    key = SecureBuffer(static_cast<size_t>(EVP_PKEY_size(pubk.get())));
+    iv = SecureBuffer(static_cast<size_t>(EVP_CIPHER_iv_length(EVP_aes_256_cbc())));
 
     /* Initialise the encryption operation. IMPORTANT - ensure you use a key
     * and IV size appropriate for your cipher
@@ -157,14 +164,13 @@ long long SymmetricCryptor::seal_file(FILE *dst, FILE *src, EVP_PKEY_ptr pubk,
     if (1 != EVP_SealInit(ctx.get(), EVP_aes_256_cbc(), &tmp_key, &key_len, iv.get(), &tmp_pubk, 1))
         throw CryptoException();
     key.resize(static_cast<size_t>(key_len));
-    iv.resize(iv_len);
 
     if (1 != fwrite(&key_len, sizeof(key_len), 1, dst))
-        throw runtime_error("cannot write key length");
+        throw CException("cannot write key length");
     if (key.size() != fwrite(key.get(), 1, key.size(), dst))
-        throw runtime_error("cannot write key");
+        throw CException("cannot write key");
     if (iv.size() != fwrite(iv.get(), 1, iv.size(), dst))
-        throw runtime_error("cannot write iv");
+        throw CException("cannot write iv");
 
     //Work until EOF
     while (!feof(src))
@@ -172,7 +178,7 @@ long long SymmetricCryptor::seal_file(FILE *dst, FILE *src, EVP_PKEY_ptr pubk,
         //Read kMaxInBufferSize data for src file
         auto plain_len = fread(in_buf.get(), 1, kMaxInBufferSize, src);
         if (ferror(src))
-            throw runtime_error("cannot read from file");
+            throw CException("cannot read from file");
 
         /* Provide the message to be encrypted, and obtain the encrypted output.
         * EVP_EncryptUpdate can be called multiple times if necessary
@@ -183,7 +189,7 @@ long long SymmetricCryptor::seal_file(FILE *dst, FILE *src, EVP_PKEY_ptr pubk,
         //Write encrypted data to file
         fwrite(out_buf.get(), 1, static_cast<unsigned int>(block_len), dst);
         if (ferror(dst))
-            throw runtime_error("cannot write file");
+            throw CException("cannot write file");
         cipher_len += block_len;
 
         //If asked to stop, then stop and return
@@ -221,9 +227,13 @@ long long SymmetricCryptor::open_file(FILE *dst, FILE *src, EVP_PKEY_ptr priv,
     size_t key_len = 0;
     size_t iv_len = static_cast<size_t>(EVP_CIPHER_iv_length(EVP_aes_256_cbc()));
 
+    key = SecureBuffer(static_cast<size_t>(EVP_PKEY_size(priv.get())));
+    iv = SecureBuffer(iv_len);
+
     if (1 != fread(&key_len, sizeof(key_len), 1, src))
         throw runtime_error("cannot read key length");
     key.resize(key_len);
+
     if (key_len != fread(key.get(), 1, key_len, src))
         throw runtime_error("cannot read key");
     if (iv_len != fread(iv.get(), 1, iv_len, src))

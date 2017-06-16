@@ -14,6 +14,7 @@ public:
     SecureBuffer key;
     SecureBuffer iv;
 
+    SymmetricCryptor();
     explicit SymmetricCryptor(SecureBuffer &secret);
 
     /**

@@ -17,7 +17,6 @@ CryptThread::CryptThread(std::shared_ptr<AsymmetricCryptor> cryptor,
     /* Initialise the library */
     ERR_load_crypto_strings();
     OpenSSL_add_all_algorithms();
-    OPENSSL_config(NULL);
 }
 
 CryptThread::~CryptThread()

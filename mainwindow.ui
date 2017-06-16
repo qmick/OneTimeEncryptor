@@ -79,7 +79,14 @@
     <property name="title">
      <string>&amp;Key</string>
     </property>
-    <addaction name="action_Generate_Key"/>
+    <widget class="QMenu" name="menu_Generate_key">
+     <property name="title">
+      <string>&amp;Generate key</string>
+     </property>
+     <addaction name="actionECC"/>
+     <addaction name="actionRSA"/>
+    </widget>
+    <addaction name="menu_Generate_key"/>
     <addaction name="actionLoad_private_key"/>
     <addaction name="actionLoad_public_key"/>
     <addaction name="action_Reset_password"/>
@@ -100,11 +107,6 @@
   <action name="action_Encrypt">
    <property name="text">
     <string>&amp;Encrypt</string>
-   </property>
-  </action>
-  <action name="action_Generate_Key">
-   <property name="text">
-    <string>&amp;Generate key</string>
    </property>
   </action>
   <action name="actionE_xit">
@@ -130,6 +132,16 @@
   <action name="action_Reset_password">
    <property name="text">
     <string>&amp;Reset password</string>
+   </property>
+  </action>
+  <action name="actionECC">
+   <property name="text">
+    <string>ECC</string>
+   </property>
+  </action>
+  <action name="actionRSA">
+   <property name="text">
+    <string>RSA</string>
    </property>
   </action>
  </widget>

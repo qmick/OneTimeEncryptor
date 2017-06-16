@@ -23,6 +23,7 @@ class MainWindow : public QMainWindow
 
 public:
     enum Mode { ENCRYPTION, DECRYPTION, ALL };
+    enum KeyType { ECC, RSA };
 
     /**
      * @brief MainWindow
@@ -65,7 +66,7 @@ private:
      */
     void setup_thread();
 
-
+    void generate_keypair(KeyType type);
 
 public slots:
     //load public and private key from pem file
@@ -79,7 +80,8 @@ public slots:
     void update_time();
 
     //Generate private key and corresponding publick key and save them to pem file
-    void generate_key_clicked();
+    void generate_ecckey_clicked();
+    void generate_rsakey_clicked();
 
     //Encrypt or decrypt file(s)
     void encrypt_clicked();

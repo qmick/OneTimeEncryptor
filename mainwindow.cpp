@@ -58,7 +58,8 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
     auto_close = false;
 
     connect(&timer,                     SIGNAL(timeout()),   this, SLOT(update_time()));
-    connect(ui->action_Generate_Key,    SIGNAL(triggered()), this, SLOT(generate_key_clicked()));
+    connect(ui->actionECC,              SIGNAL(triggered()), this, SLOT(generate_ecckey_clicked()));
+    connect(ui->actionRSA,              SIGNAL(triggered()), this, SLOT(generate_rsakey_clicked()));
     connect(ui->action_Encrypt,         SIGNAL(triggered()), this, SLOT(encrypt_clicked()));
     connect(ui->action_Decrypt,         SIGNAL(triggered()), this, SLOT(decrypt_clicked()));
     connect(ui->stop_button,            SIGNAL(clicked()),   this, SLOT(stop_job()));
@@ -150,7 +151,8 @@ void MainWindow::setup_thread()
     ui->actionLoad_public_key->setDisabled(true);
     ui->action_Decrypt->setDisabled(true);
     ui->action_Encrypt->setDisabled(true);
-    ui->action_Generate_Key->setDisabled(true);
+    ui->actionECC->setDisabled(true);
+    ui->actionRSA->setDisabled(true);
 
     //Setup timer
     timer.start(1000);
@@ -161,6 +163,53 @@ void MainWindow::setup_thread()
     count = 0;
 
     crypt_thread->start();
+}
+
+void MainWindow::generate_keypair(MainWindow::KeyType type)
+{
+    bool ok;
+    QString text = QInputDialog::getText(this, tr("Input password"),
+                                         tr("Password:"), QLineEdit::Password,
+                                         QDir::home().dirName(), &ok);
+    SecureBuffer password = SecureBuffer(text.toStdString());
+
+    if (ok && !text.isEmpty())
+    {
+        try
+        {
+            EVP_PKEY_ptr key_pair;
+            switch (type)
+            {
+            case ECC:
+                key_pair = KeyGenerator::get_key_pair();
+                break;
+            case RSA:
+                key_pair = KeyGenerator::get_rsa_key_pair();
+                break;
+            }
+
+            KeyGenerator::save_private_key(private_path.toStdString(), key_pair, password);
+            KeyGenerator::save_public_key(public_path.toStdString(), key_pair);
+
+            encryptor = std::make_unique<Encryptor>(public_path.toStdString());
+            decryptor = std::make_unique<Decryptor>(private_path.toStdString(), password);
+        }
+        catch (std::exception &e)
+        {
+            //Remove generated files
+            remove(public_path.toStdString().c_str());
+            remove(private_path.toStdString().c_str());
+
+            QMessageBox::critical(this, tr("Error"),
+                                  tr("Cannot generate key: ") + e.what(),
+                                  QMessageBox::Abort);
+            return;
+        }
+
+        //Update UI
+        private_label.setText(tr("Private key loaded"));
+        public_label.setText(tr("Public key loaded"));
+    }
 }
 
 bool MainWindow::load_publickey()
@@ -247,45 +296,15 @@ void MainWindow::update_time()
     ui->time_label->setText(time_record.toString("hh:mm:ss"));
 }
 
-
-void MainWindow::generate_key_clicked()
+void MainWindow::generate_ecckey_clicked()
 {
-    bool ok;
-    QString text = QInputDialog::getText(this, tr("Input password"),
-                                         tr("Password:"), QLineEdit::Password,
-                                         QDir::home().dirName(), &ok);
-    SecureBuffer password = SecureBuffer(text.toStdString());
-
-    if (ok && !text.isEmpty())
-    {
-        try
-        {
-            auto key_pair = KeyGenerator::get_key_pair();
-
-            KeyGenerator::save_private_key(private_path.toStdString(), key_pair, password);
-            KeyGenerator::save_public_key(public_path.toStdString(), key_pair);
-
-            encryptor = std::make_unique<Encryptor>(public_path.toStdString());
-            decryptor = std::make_unique<Decryptor>(private_path.toStdString(), password);
-        }
-        catch (std::exception &e)
-        {
-            //Remove generated files
-            remove(public_path.toStdString().c_str());
-            remove(private_path.toStdString().c_str());
-
-            QMessageBox::critical(this, tr("Error"),
-                                  tr("Cannot generate key: ") + e.what(),
-                                  QMessageBox::Abort);
-            return;
-        }
-
-        //Update UI
-        private_label.setText(tr("Private key loaded"));
-        public_label.setText(tr("Public key loaded"));
-    }
+    generate_keypair(ECC);
 }
 
+void MainWindow::generate_rsakey_clicked()
+{
+    generate_keypair(RSA);
+}
 
 void MainWindow::encrypt_clicked()
 {
@@ -388,7 +407,8 @@ void MainWindow::job_finished()
     ui->actionLoad_public_key->setDisabled(false);
     ui->action_Decrypt->setDisabled(false);
     ui->action_Encrypt->setDisabled(false);
-    ui->action_Generate_Key->setDisabled(false);
+    ui->actionECC->setDisabled(false);
+    ui->actionRSA->setDisabled(true);
 }
 
 void MainWindow::stop_job()

@@ -9,11 +9,15 @@
 #include <openssl/err.h>
 #include <openssl/ec.h>
 #include <openssl/pem.h>
+#include <QDebug>
+
 
 using std::string;
 using std::runtime_error;
 using std::exception;
 using std::function;
+using std::unique_ptr;
+using std::make_unique;
 
 Encryptor::Encryptor(const string &master_pubkey_pem)
 {
@@ -45,11 +49,7 @@ long long Encryptor::crypt_file(const string &filename, function<bool(long long)
     FILE *plain_fp = NULL, *cipher_fp = NULL;
     string cipher_filename = filename + kCryptSign;
     long long ciphertext_len = 0;
-
-    //ECDH
-    auto key_pair = KeyGenerator::get_key_pair();
-    auto secret = KeyGenerator::get_secret(key_pair, master_key);
-    SymmetricCryptor cryptor(secret);
+    unique_ptr<SymmetricCryptor> cryptor;
 
     //Open source file for reading
     plain_fp = fopen(filename.c_str(), "rb");
@@ -64,25 +64,57 @@ long long Encryptor::crypt_file(const string &filename, function<bool(long long)
         throw CException("cannot open: ");
     }
 
-    //Write session publick key to file header
-    if (!PEM_write_PUBKEY(cipher_fp, key_pair.get()))
+    auto key_type = EVP_PKEY_id(master_key.get());
+    if (key_type == EVP_PKEY_RSA)
     {
-        fclose(plain_fp);
-        fclose(cipher_fp);
-        remove(cipher_filename.c_str());
-        throw CryptoException();
-    }
+        cryptor = make_unique<SymmetricCryptor>();
 
-    try
-    {
-        ciphertext_len = cryptor.encrypt_file(cipher_fp, plain_fp, callback);
+        try
+        {
+            ciphertext_len = cryptor->seal_file(cipher_fp, plain_fp, master_key, callback);
+        }
+        catch (exception &)
+        {
+            fclose(plain_fp);
+            fclose(cipher_fp);
+            remove(cipher_filename.c_str());
+            throw;
+        }
     }
-    catch (exception &e)
+    else if (key_type == EVP_PKEY_EC || key_type == NID_X25519)
+    {
+        //ECDH
+        auto key_pair = KeyGenerator::get_key_pair();
+        auto secret = KeyGenerator::get_secret(key_pair, master_key);
+        cryptor = make_unique<SymmetricCryptor>(secret);
+
+        //Write session publick key to file header
+        if (!PEM_write_PUBKEY(cipher_fp, key_pair.get()))
+        {
+            fclose(plain_fp);
+            fclose(cipher_fp);
+            remove(cipher_filename.c_str());
+            throw CryptoException();
+        }
+
+        try
+        {
+            ciphertext_len = cryptor->encrypt_file(cipher_fp, plain_fp, callback);
+        }
+        catch (exception &)
+        {
+            fclose(plain_fp);
+            fclose(cipher_fp);
+            remove(cipher_filename.c_str());
+            throw;
+        }
+    }
+    else
     {
         fclose(plain_fp);
         fclose(cipher_fp);
         remove(cipher_filename.c_str());
-        throw e;
+        throw runtime_error("not valid key type");
     }
 
     fclose(plain_fp);

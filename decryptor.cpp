@@ -12,6 +12,8 @@ using std::runtime_error;
 using std::string;
 using std::function;
 using std::exception;
+using std::unique_ptr;
+using std::make_unique;
 
 Decryptor::Decryptor(const string &master_prikey_pem, SecureBuffer &password)
 {
@@ -50,6 +52,7 @@ long long Decryptor::crypt_file(const string &filename, function<bool(long long)
     EVP_CIPHER_CTX_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
     FILE *cipher_fp = NULL, *plain_fp = NULL;
 
+    unique_ptr<SymmetricCryptor> cryptor;
     //Decrypted data size
     long long plaintext_len = 0;
 
@@ -66,33 +69,61 @@ long long Decryptor::crypt_file(const string &filename, function<bool(long long)
         throw CException("cannot open: ");
     }
 
-    //Read session public key from header of encrypted file
-    auto ret = PEM_read_PUBKEY(cipher_fp, NULL, NULL, NULL);
-    if (ret == NULL)
+    auto key_type = EVP_PKEY_id(master_key.get());
+    if (key_type == EVP_PKEY_RSA)
     {
-        fclose(cipher_fp);
-        fclose(plain_fp);
-        throw CryptoException();
+        cryptor = make_unique<SymmetricCryptor>();
+
+        try
+        {
+            plaintext_len = cryptor->open_file(plain_fp, cipher_fp, master_key, callback);
+        }
+        catch (exception &)
+        {
+            fclose(plain_fp);
+            fclose(cipher_fp);
+            remove(plain_filename.c_str());
+            throw;
+        }
     }
-    pub_key = EVP_PKEY_ptr(ret, ::EVP_PKEY_free);
-
-    //ECDH
-    secret = KeyGenerator::get_secret(master_key, pub_key);
-
-    //Initialize AES256 decryptor
-    SymmetricCryptor cryptor(secret);
-
-    try
+    else if (key_type == EVP_PKEY_EC || key_type == NID_X25519)
     {
-        plaintext_len = cryptor.decrypt_file(plain_fp, cipher_fp, callback);
+        //Read session public key from header of encrypted file
+        auto ret = PEM_read_PUBKEY(cipher_fp, NULL, NULL, NULL);
+        if (!ret)
+        {
+            fclose(cipher_fp);
+            fclose(plain_fp);
+            throw CryptoException();
+        }
+        pub_key = EVP_PKEY_ptr(ret, ::EVP_PKEY_free);
+
+        //ECDH
+        secret = KeyGenerator::get_secret(master_key, pub_key);
+
+        //Initialize AES256 decryptor
+        cryptor = make_unique<SymmetricCryptor>(secret);
+
+        try
+        {
+            plaintext_len = cryptor->decrypt_file(plain_fp, cipher_fp, callback);
+        }
+        catch (exception &)
+        {
+            fclose(plain_fp);
+            fclose(cipher_fp);
+            remove(plain_filename.c_str());
+            throw;
+        }
     }
-    catch (exception &e)
+    else
     {
         fclose(plain_fp);
         fclose(cipher_fp);
         remove(plain_filename.c_str());
-        throw e;
+        throw runtime_error("not valid key type");
     }
+
 
     fclose(plain_fp);
     fclose(cipher_fp);

@@ -9,13 +9,15 @@ using std::string;
 
 CException::CException()
 {
-    what_str = strerror(errno);
+    auto err_str = strerror(errno);
+    what_str = err_str;
 }
 
 
 CException::CException(const string &msg)
 {
-    what_str = msg + strerror(errno);
+    auto err_str = strerror(errno);
+    what_str = msg + ": " + err_str;
 }
 
 

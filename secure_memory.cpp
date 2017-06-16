@@ -39,7 +39,7 @@ SecureBuffer::SecureBuffer(SecureBuffer &&other) noexcept
 
 SecureBuffer::~SecureBuffer()
 {
-    OPENSSL_cleanse(buffer, n*sizeof(byte));
+    OPENSSL_cleanse(buffer, n);
     delete []buffer;
 }
 
@@ -63,16 +63,22 @@ const byte &SecureBuffer::operator[](size_t n) const
     return buffer[n];
 }
 
-void SecureBuffer::resize(size_t n)
+void SecureBuffer::resize(size_t new_size)
 {
-    if (n > this->n)
+    if (new_size > n)
     {
-        OPENSSL_cleanse(buffer, n*sizeof(byte));
-        delete []buffer;
-        buffer = new byte[n];
+        if (n != 0)
+        {
+            OPENSSL_cleanse(buffer, n);
+            delete []buffer;
+        }
+        buffer = new byte[new_size];
     }
     else
-        this->n = n;
+    {
+        OPENSSL_cleanse(buffer + new_size, n - new_size);
+        n = new_size;
+    }
 }
 
 byte* SecureBuffer::get()
