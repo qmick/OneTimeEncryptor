@@ -38,7 +38,7 @@ Decryptor::~Decryptor()
 
 }
 
-long long Decryptor::crypt_file(const string &filename, function<bool(long long)> callback)
+int64_t Decryptor::crypt_file(const string &filename, function<bool(int64_t)> callback)
 {
     //Decrypted file name
     string plain_filename = filename.substr(0, filename.length() - kCryptSign.length());
@@ -54,19 +54,19 @@ long long Decryptor::crypt_file(const string &filename, function<bool(long long)
 
     unique_ptr<SymmetricCryptor> cryptor;
     //Decrypted data size
-    long long plaintext_len = 0;
+    int64_t plaintext_len = 0;
 
     //Open encrypted file
     cipher_fp = fopen(filename.c_str(), "rb");
     if (!cipher_fp)
-        throw CException("cannot open: ");
+        throw CException("cannot open");
 
     //Open decrypted file for writting(append)
     plain_fp = fopen(plain_filename.c_str(), "wb");
     if (!plain_fp)
     {
         fclose(cipher_fp);
-        throw CException("cannot open: ");
+        throw CException("cannot open");
     }
 
     auto key_type = EVP_PKEY_id(master_key.get());

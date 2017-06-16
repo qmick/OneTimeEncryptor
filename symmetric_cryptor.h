@@ -3,6 +3,7 @@
 
 #include "secure_memory.h"
 #include <cstdio>
+#include <cstdint>
 #include <functional>
 
 class SymmetricCryptor
@@ -26,13 +27,13 @@ public:
      * @param callback Callback used to send progress and recieve stop signal
      * @return Encrypted data size, -1 if stop by callback
      */
-    long long encrypt_file(FILE *dst, FILE *src, std::function<bool(long long)> callback);
-    long long decrypt_file(FILE *dst, FILE *src, std::function<bool(long long)> callback);
+    int64_t encrypt_file(FILE *dst, FILE *src, std::function<bool(int64_t)> callback);
+    int64_t decrypt_file(FILE *dst, FILE *src, std::function<bool(int64_t)> callback);
 
-    long long seal_file(FILE *dst, FILE *src, EVP_PKEY_ptr pubk,
-                        std::function<bool(long long)> callback);
-    long long open_file(FILE *dst, FILE *src, EVP_PKEY_ptr priv,
-                        std::function<bool(long long)> callback);
+    int64_t seal_file(FILE *dst, FILE *src, EVP_PKEY_ptr pubk,
+                        std::function<bool(int64_t)> callback);
+    int64_t open_file(FILE *dst, FILE *src, EVP_PKEY_ptr priv,
+                        std::function<bool(int64_t)> callback);
 
     const EVP_CIPHER *get_cipher() const;
 

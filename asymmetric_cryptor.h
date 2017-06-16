@@ -4,6 +4,7 @@
 #include "secure_memory.h"
 #include <string>
 #include <functional>
+#include <cstdint>
 
 class AsymmetricCryptor
 {
@@ -18,7 +19,7 @@ public:
      * @param callback Callback that used to send progress and recieve stop signal
      * @return
      */
-    virtual long long crypt_file(const std::string &filename, std::function<bool(long long)> callback) = 0;
+    virtual int64_t crypt_file(const std::string &filename, std::function<bool(int64_t)> callback) = 0;
 
     /**
      * @brief Get private key or public key stored in PKEY structure

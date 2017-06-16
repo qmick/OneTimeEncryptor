@@ -22,7 +22,7 @@ public:
      * @param callback Callback used to send progress and recieve stop signal
      * @return Decrypted data size, -1 if stop by callback
      */
-    long long crypt_file(const std::string &filename, std::function<bool(long long)> callback) override;
+    int64_t crypt_file(const std::string &filename, std::function<bool(int64_t)> callback) override;
 
     /**
      * @brief Get master private key

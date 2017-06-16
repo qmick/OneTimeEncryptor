@@ -44,7 +44,7 @@ SymmetricCryptor::SymmetricCryptor(SecureBuffer &secret, const EVP_CIPHER *ciphe
 }
 
 
-long long SymmetricCryptor::encrypt_file(FILE *dst, FILE *src, function<bool(long long)> callback)
+int64_t SymmetricCryptor::encrypt_file(FILE *dst, FILE *src, function<bool(int64_t)> callback)
 {
     //Buffer to place read data
     auto in_buf = SecureBuffer(kMaxInBufferSize);
@@ -53,7 +53,7 @@ long long SymmetricCryptor::encrypt_file(FILE *dst, FILE *src, function<bool(lon
     auto out_buf = SecureBuffer(kMaxOutBufferSize);
 
     //Total data length write
-    long long cipher_len = 0;
+    int64_t cipher_len = 0;
 
     //Data length of 1 update cycle
     int block_len = 0;
@@ -114,12 +114,12 @@ long long SymmetricCryptor::encrypt_file(FILE *dst, FILE *src, function<bool(lon
 
 
 //Almost the same as encryption
-long long SymmetricCryptor::decrypt_file(FILE *dst, FILE *src, function<bool(long long)> callback)
+int64_t SymmetricCryptor::decrypt_file(FILE *dst, FILE *src, function<bool(int64_t)> callback)
 {
     auto in_buf = SecureBuffer(kMaxInBufferSize);
     auto out_buf = SecureBuffer(kMaxOutBufferSize);
     EVP_CIPHER_CTX_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
-    long long plain_len = 0;
+    int64_t plain_len = 0;
     int block_len = 0;
 
     if (1 != EVP_DecryptInit_ex(ctx.get(), symmetric_cipher, NULL, key.get(), iv.get()))
@@ -153,8 +153,8 @@ long long SymmetricCryptor::decrypt_file(FILE *dst, FILE *src, function<bool(lon
     return plain_len;
 }
 
-long long SymmetricCryptor::seal_file(FILE *dst, FILE *src, EVP_PKEY_ptr pubk,
-                                      std::function<bool (long long)> callback)
+int64_t SymmetricCryptor::seal_file(FILE *dst, FILE *src, EVP_PKEY_ptr pubk,
+                                      std::function<bool (int64_t)> callback)
 {
     //Buffer to place read data
     auto in_buf = SecureBuffer(kMaxInBufferSize);
@@ -163,14 +163,14 @@ long long SymmetricCryptor::seal_file(FILE *dst, FILE *src, EVP_PKEY_ptr pubk,
     auto out_buf = SecureBuffer(kMaxOutBufferSize);
 
     //Total data length write
-    long long cipher_len = 0;
+    int64_t cipher_len = 0;
 
     //Data length of 1 update cycle
     int block_len = 0;
 
     EVP_CIPHER_CTX_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
 
-    int key_len = 0;
+    int32_t key_len = 0;
     key = SecureBuffer(static_cast<size_t>(EVP_PKEY_size(pubk.get())));
     iv = SecureBuffer(static_cast<size_t>(EVP_CIPHER_iv_length(EVP_aes_256_cbc())));
 
@@ -236,15 +236,15 @@ long long SymmetricCryptor::seal_file(FILE *dst, FILE *src, EVP_PKEY_ptr pubk,
     return cipher_len;
 }
 
-long long SymmetricCryptor::open_file(FILE *dst, FILE *src, EVP_PKEY_ptr priv,
-                                      std::function<bool (long long)> callback)
+int64_t SymmetricCryptor::open_file(FILE *dst, FILE *src, EVP_PKEY_ptr priv,
+                                      std::function<bool (int64_t)> callback)
 {
     auto in_buf = SecureBuffer(kMaxInBufferSize);
     auto out_buf = SecureBuffer(kMaxOutBufferSize);
     EVP_CIPHER_CTX_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
-    long long plain_len = 0;
+    int64_t plain_len = 0;
     int block_len = 0;
-    size_t key_len = 0;
+    int32_t key_len = 0;
     size_t iv_len = static_cast<size_t>(EVP_CIPHER_iv_length(EVP_aes_256_cbc()));
 
     key = SecureBuffer(static_cast<size_t>(EVP_PKEY_size(priv.get())));

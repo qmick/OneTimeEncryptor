@@ -26,7 +26,7 @@ Encryptor::Encryptor(const string &master_pubkey_pem)
     //Open pem file that contains master private ec key
     pubkey_fp = fopen(master_pubkey_pem.c_str(), "r");
     if (!pubkey_fp)
-        throw CException("cannot open private key file: ");
+        throw CException("cannot open private key file");
 
     //Read master private key from file
     auto ret = PEM_read_PUBKEY(pubkey_fp, NULL, NULL, NULL);
@@ -43,25 +43,25 @@ Encryptor::~Encryptor()
 }
 
 
-long long Encryptor::crypt_file(const string &filename, function<bool(long long)> callback)
+int64_t Encryptor::crypt_file(const string &filename, function<bool(int64_t)> callback)
 {
     EVP_CIPHER_CTX_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
     FILE *plain_fp = NULL, *cipher_fp = NULL;
     string cipher_filename = filename + kCryptSign;
-    long long ciphertext_len = 0;
+    int64_t ciphertext_len = 0;
     unique_ptr<SymmetricCryptor> cryptor;
 
     //Open source file for reading
     plain_fp = fopen(filename.c_str(), "rb");
     if (!plain_fp)
-        throw CException("cannot open: ");
+        throw CException("cannot open");
 
     //Open dst file for writing
     cipher_fp = fopen(cipher_filename.c_str(), "wb");
     if (!cipher_fp)
     {
         fclose(plain_fp);
-        throw CException("cannot open: ");
+        throw CException("cannot open");
     }
 
     auto key_type = EVP_PKEY_id(master_key.get());

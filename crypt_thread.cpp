@@ -35,7 +35,7 @@ void CryptThread::run() {
         if (f.exists() && f.isFile() && f.size() > 0)
         {
             //Callback that used to recieve progress and send stop signal
-            std::function<bool(long long)> cb = [&](long long bytes) {
+            std::function<bool(int64_t)> cb = [&](int64_t bytes) {
                 auto total = static_cast<double>(f.size());
                 auto current  = static_cast<double>(bytes);
                 auto progress = static_cast<int>(current / total * 100.0);
