@@ -26,7 +26,9 @@ Encryptor::Encryptor(const string &master_pubkey_pem)
 
     //Read master private key from file
     auto ret = PEM_read_PUBKEY(in.get(), NULL, NULL, NULL);
-
+    if (!ret)
+        throw CryptoException();
+    key_type = EVP_PKEY_id(ret);
     master_key = EVP_PKEY_ptr(ret, ::EVP_PKEY_free);
 }
 
@@ -36,11 +38,21 @@ Encryptor::~Encryptor()
 }
 
 
-int64_t Encryptor::crypt_file(const string &filename, function<bool(int64_t)> callback)
+int64_t Encryptor::crypt_file(const string &filename,
+                              function<bool(int64_t)> callback,
+                              const std::string &cipher_name)
 {
     EVP_CIPHER_CTX_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
     string cipher_filename = filename + kCryptSign;
     int64_t ciphertext_len = 0;
+    int32_t file_key_type = key_type;
+    int32_t cipher_nid;
+    auto cipher = EVP_get_cipherbyname(cipher_name.c_str());
+
+    if (!cipher)
+        throw runtime_error("not a valid cipher name");
+    cipher_nid = EVP_CIPHER_nid(cipher);
+
     unique_ptr<SymmetricCryptor> cryptor;
 
     //Open source file for reading
@@ -49,10 +61,12 @@ int64_t Encryptor::crypt_file(const string &filename, function<bool(int64_t)> ca
     //Open dst file for writing
     CryptoIO dst(cipher_filename, "wb");
 
-    auto key_type = EVP_PKEY_id(master_key.get());
+    dst.write(&file_key_type, sizeof(file_key_type), 1);
+    dst.write(&cipher_nid, sizeof(cipher_nid), 1);
+
     if (key_type == EVP_PKEY_RSA)
     {
-        cryptor = make_unique<SymmetricCryptor>();
+        cryptor = make_unique<SymmetricCryptor>(cipher);
 
         try
         {
@@ -69,7 +83,7 @@ int64_t Encryptor::crypt_file(const string &filename, function<bool(int64_t)> ca
         //ECDH
         auto key_pair = KeyGenerator::get_key_pair();
         auto secret = KeyGenerator::get_secret(key_pair, master_key);
-        cryptor = make_unique<SymmetricCryptor>(secret);
+        cryptor = make_unique<SymmetricCryptor>(secret, cipher);
 
         //Write session publick key to file header
         if (!PEM_write_PUBKEY(dst.get(), key_pair.get()))

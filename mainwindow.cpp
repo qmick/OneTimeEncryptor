@@ -408,7 +408,7 @@ void MainWindow::job_finished()
     ui->action_Decrypt->setDisabled(false);
     ui->action_Encrypt->setDisabled(false);
     ui->actionECC->setDisabled(false);
-    ui->actionRSA->setDisabled(true);
+    ui->actionRSA->setDisabled(false);
 }
 
 void MainWindow::stop_job()

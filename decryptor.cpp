@@ -23,9 +23,10 @@ Decryptor::Decryptor(const string &master_prikey_pem, SecureBuffer &password)
 
     //Read master private key from file
     auto ret = PEM_read_PrivateKey(in.get(), NULL, NULL, password.get());
-    if (ret == NULL)
+    if (!ret)
         throw CryptoException();
 
+    key_type = EVP_PKEY_id(ret);
     master_key = EVP_PKEY_ptr(ret, ::EVP_PKEY_free);
 }
 
@@ -34,7 +35,8 @@ Decryptor::~Decryptor()
 
 }
 
-int64_t Decryptor::crypt_file(const string &filename, function<bool(int64_t)> callback)
+int64_t Decryptor::crypt_file(const string &filename,
+                              function<bool(int64_t)> callback, const std::string &)
 {
     //Decrypted file name
     string plain_filename = filename.substr(0, filename.length() - kCryptSign.length());
@@ -58,11 +60,24 @@ int64_t Decryptor::crypt_file(const string &filename, function<bool(int64_t)> ca
     //Open decrypted file for writting(append)
     CryptoIO dst(plain_filename, "wb");
 
-    auto key_type = EVP_PKEY_id(master_key.get());
+    //Public key type used in this file
+    int32_t file_key_type;
+
+    //Symmetric method used in this file
+    int32_t cipher_nid;
+
+    src.must_read(&file_key_type, sizeof(file_key_type), 1);
+    if (file_key_type != key_type)
+        throw runtime_error("key type in file does not match key type loaded");
+
+    src.must_read(&cipher_nid, sizeof(cipher_nid), 1);
+    auto cipher = EVP_get_cipherbynid(cipher_nid);
+    if (!cipher)
+        throw runtime_error("wrong cipher nid");
+
     if (key_type == EVP_PKEY_RSA)
     {
-        cryptor = make_unique<SymmetricCryptor>();
-
+        cryptor = make_unique<SymmetricCryptor>(cipher);
         try
         {
             plaintext_len = cryptor->open_file(dst, src, master_key, callback);
@@ -84,8 +99,8 @@ int64_t Decryptor::crypt_file(const string &filename, function<bool(int64_t)> ca
         //ECDH
         secret = KeyGenerator::get_secret(master_key, pub_key);
 
-        //Initialize AES256 decryptor
-        cryptor = make_unique<SymmetricCryptor>(secret);
+        //Initialize decryptor
+        cryptor = make_unique<SymmetricCryptor>(secret, cipher);
 
         try
         {

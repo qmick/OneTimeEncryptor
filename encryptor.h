@@ -21,7 +21,9 @@ public:
      * @param Callback used to send progress and recieve stop signal
      * @return callback Encrypted data size, -1 if stop by callback
      */
-    int64_t crypt_file(const std::string &filename, std::function<bool(int64_t)> callback) override;
+    int64_t crypt_file(const std::string &filename,
+                       std::function<bool(int64_t)> callback,
+                       const std::string &cipher_name) override;
 
     /**
      * @brief Get master public key
@@ -32,6 +34,8 @@ public:
 private:
     //Master public key
     EVP_PKEY_ptr master_key;
+
+    int key_type;
 };
 
 #endif // FILE_CRYPTOR_H
