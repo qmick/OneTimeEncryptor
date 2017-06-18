@@ -6,6 +6,7 @@
 #include <QTime>
 #include <QLabel>
 #include <memory>
+#include "secure_memory.h"
 
 namespace Ui {
 class MainWindow;
@@ -25,6 +26,7 @@ public:
     enum Mode { ENCRYPTION, DECRYPTION, ALL };
     enum KeyType { ECC, RSA };
 
+    static const QStringList kSupportedCipher;
     /**
      * @brief MainWindow
      * @param mode Mode of opening, could be [ENCRYPTION|DECRYPTION|ALL]
@@ -59,7 +61,13 @@ private:
     //Find place of file progress by its name
     QHash<QString, int> file_no;
 
+    //
+    QString current_cipher;
+
     void setup_progress(const QStringList &files);
+
+    bool load_publickey();
+    bool load_privatekey(SecureBuffer &password);
 
     /**
      * @brief setup_thread Setup working thread for encryption or decryption
@@ -70,8 +78,11 @@ private:
 
 public slots:
     //load public and private key from pem file
-    bool load_publickey();
-    bool load_privatekey();
+    bool load_publickey_clicked();
+    bool load_privatekey_clicked();
+
+    //
+    void cipher_changed(const QString &cipher);
 
     //Reset password that used to encrypt private key
     void reset_password();

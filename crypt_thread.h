@@ -17,6 +17,8 @@ public:
                   const QStringList &file_names);
     ~CryptThread();
     bool should_stop;
+    QString cipher;
+
 protected:
     void run();
 

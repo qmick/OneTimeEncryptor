@@ -19,6 +19,7 @@
 using std::make_unique;
 using std::make_shared;
 
+
 QString size_human(qint64 size)
 {
     double num = size;
@@ -35,6 +36,12 @@ QString size_human(qint64 size)
     }
     return QString().setNum(num, 'f', 2)+" "+unit;
 }
+
+const QStringList MainWindow::kSupportedCipher = { "AES-128-CBC", "AES-128-CTR",
+                                                   "AES-192-CBC", "AES-192-CTR",
+                                                   "AES-256-CBC", "AES-256-CTR",
+                                                   "ChaCha20" };
+
 
 MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *parent)
     : QMainWindow(parent), ui(make_unique<Ui::MainWindow>()),
@@ -53,6 +60,8 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
     ui->tableView->setItemDelegate(progress_delegate.get());
     emit progress_model->layoutChanged();
 
+    ui->comboBox->addItems(kSupportedCipher);
+
     public_path = "./public.pem";
     private_path = "./private.pem";
     auto_close = false;
@@ -63,16 +72,18 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
     connect(ui->action_Encrypt,         SIGNAL(triggered()), this, SLOT(encrypt_clicked()));
     connect(ui->action_Decrypt,         SIGNAL(triggered()), this, SLOT(decrypt_clicked()));
     connect(ui->stop_button,            SIGNAL(clicked()),   this, SLOT(stop_job()));
-    connect(ui->actionLoad_private_key, SIGNAL(triggered()), this, SLOT(load_privatekey()));
-    connect(ui->actionLoad_public_key,  SIGNAL(triggered()), this, SLOT(load_publickey()));
+    connect(ui->actionLoad_private_key, SIGNAL(triggered()), this, SLOT(load_privatekey_clicked()));
+    connect(ui->actionLoad_public_key,  SIGNAL(triggered()), this, SLOT(load_publickey_clicked()));
     connect(ui->actionE_xit,            SIGNAL(triggered()), this, SLOT(on_exit()));
     connect(ui->action_Reset_password,  SIGNAL(triggered()), this, SLOT(reset_password()));
+    connect(ui->comboBox,               SIGNAL(currentTextChanged(QString)),
+            this, SLOT(cipher_changed(const QString&)));
 
     switch (mode)
     {
     //Open for encryption
     case ENCRYPTION:
-        if (!load_publickey())
+        if (!load_publickey_clicked())
             return;
 
         //If command line args contains filenames, encrypt them automatically
@@ -87,7 +98,7 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
 
     //Open for decryption
     case DECRYPTION:
-        if (!load_privatekey())
+        if (!load_privatekey_clicked())
             return;
 
         //If command line args contains filenames, decrypt them automatically
@@ -102,8 +113,8 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
 
     //Open for both
     case ALL:
-        load_publickey();
-        load_privatekey();
+        load_publickey_clicked();
+        load_privatekey_clicked();
         break;
     }
 }
@@ -191,8 +202,8 @@ void MainWindow::generate_keypair(MainWindow::KeyType type)
             KeyGenerator::save_private_key(private_path.toStdString(), key_pair, password);
             KeyGenerator::save_public_key(public_path.toStdString(), key_pair);
 
-            encryptor = std::make_unique<Encryptor>(public_path.toStdString());
-            decryptor = std::make_unique<Decryptor>(private_path.toStdString(), password);
+            load_publickey();
+            load_privatekey(password);
         }
         catch (std::exception &e)
         {
@@ -205,11 +216,27 @@ void MainWindow::generate_keypair(MainWindow::KeyType type)
                                   QMessageBox::Abort);
             return;
         }
-
-        //Update UI
-        private_label.setText(tr("Private key loaded"));
-        public_label.setText(tr("Public key loaded"));
     }
+}
+
+bool MainWindow::load_publickey_clicked()
+{
+    return load_publickey();
+}
+
+bool MainWindow::load_privatekey_clicked()
+{
+    bool ok;
+    QString text = QInputDialog::getText(this, tr("Input password"),
+                                         tr("Password:"), QLineEdit::Password,
+                                         QDir::home().dirName(), &ok);
+    SecureBuffer password(text.toStdString());
+    return load_privatekey(password);
+}
+
+void MainWindow::cipher_changed(const QString &cipher)
+{
+    current_cipher = cipher;
 }
 
 bool MainWindow::load_publickey()
@@ -220,13 +247,31 @@ bool MainWindow::load_publickey()
         try
         {
             encryptor = std::make_shared<Encryptor>(public_path.toStdString());
-            public_label.setText(tr("Public key loaded"));
+
+            //Get private key type
+            auto key = encryptor->get_key();
+            switch (EVP_PKEY_id(key.get()))
+            {
+            case EVP_PKEY_RSA:
+                public_label.setText(tr("RSA public key loaded"));
+                break;
+
+            case EVP_PKEY_EC:
+            case NID_X25519:
+                public_label.setText(tr("EC public key loaded"));
+                break;
+
+            default:
+                encryptor = nullptr;
+                QMessageBox::critical(this, "Error", tr("Unsupported Key type"), QMessageBox::Abort);
+                return false;
+            }
             return true;
         }
         catch (const std::exception &e)
         {
             QMessageBox::warning(this, "Warning",
-                                 QString("cannot open public pem file: ") + e.what(),
+                                 tr("Cannot open public pem file: ") + e.what(),
                                  QMessageBox::Abort);
         }
     }
@@ -234,26 +279,40 @@ bool MainWindow::load_publickey()
     return false;
 }
 
-bool MainWindow::load_privatekey()
+bool MainWindow::load_privatekey(SecureBuffer &password)
 {
     QFileInfo check_prifile(private_path);
     if (check_prifile.exists() && check_prifile.isFile())
     {
-        bool ok;
-        QString text = QInputDialog::getText(this, tr("Input password"),
-                                             tr("Password:"), QLineEdit::Password,
-                                             QDir::home().dirName(), &ok);
         try
         {
-            SecureBuffer password = SecureBuffer(text.toStdString());
             decryptor = std::make_shared<Decryptor>(private_path.toStdString(), password);
-            private_label.setText(tr("Private key loaded"));
+
+            //Get private key type
+            auto key = decryptor->get_key();
+            switch (EVP_PKEY_id(key.get()))
+            {
+            case EVP_PKEY_RSA:
+                private_label.setText(tr("RSA private key loaded"));
+                break;
+
+            case EVP_PKEY_EC:
+            case NID_X25519:
+                private_label.setText(tr("EC private key loaded"));
+                break;
+
+            default:
+                decryptor = nullptr;
+                QMessageBox::critical(this, "Error", tr("Unsupported Key type"), QMessageBox::Abort);
+                return false;
+            }
+
             return true;
         }
         catch (const std::exception &e)
         {
             QMessageBox::warning(this, "Warning",
-                                 QString("cannot open private pem file: ") + e.what(),
+                                 tr("cannot open private pem file: ") + e.what(),
                                  QMessageBox::Abort);
         }
     }
@@ -322,7 +381,7 @@ void MainWindow::encrypt_clicked()
     {
         auto files = dialog.selectedFiles();
         crypt_thread = std::make_unique<CryptThread>(encryptor, files);
-
+        crypt_thread->cipher = current_cipher;
         setup_progress(files);
         setup_thread();
     }

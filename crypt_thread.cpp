@@ -46,7 +46,7 @@ void CryptThread::run() {
             try
             {
                 //If stop manually
-                if (cryptor->crypt_file(std::string(i.toLocal8Bit().data()), cb) < 0)
+                if (cryptor->crypt_file(std::string(i.toLocal8Bit().data()), cb, cipher.toStdString()) < 0)
                 {
                     emit file_stopped(i);
                     break;
