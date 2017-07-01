@@ -60,8 +60,6 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
     ui->tableView->setItemDelegate(progress_delegate.get());
     emit progress_model->layoutChanged();
 
-    ui->comboBox->addItems(kSupportedCipher);
-
     public_path = "./public.pem";
     private_path = "./private.pem";
     auto_close = false;
@@ -78,6 +76,8 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
     connect(ui->action_Reset_password,  SIGNAL(triggered()), this, SLOT(reset_password()));
     connect(ui->comboBox,               SIGNAL(currentTextChanged(QString)),
             this, SLOT(cipher_changed(const QString&)));
+
+    ui->comboBox->addItems(kSupportedCipher);
 
     switch (mode)
     {
