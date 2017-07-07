@@ -4,7 +4,7 @@
 #include <exception>
 #include <string>
 
-class CryptoException : public std::exception
+class CryptoException : public virtual std::exception
 {
 public:
     static const int kMaxErrorStringLen = 256;

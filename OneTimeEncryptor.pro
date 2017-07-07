@@ -37,7 +37,9 @@ SOURCES += \
     progress_tablemodel.cpp \
     progress_delegate.cpp \
     c_exception.cpp \
-    crypto_io.cpp
+    crypto_io.cpp \
+    pack_io.cpp \
+    pack_exception.cpp
 
 HEADERS += \
         mainwindow.h \
@@ -52,7 +54,9 @@ HEADERS += \
     progress_tablemodel.h \
     progress_delegate.h \
     c_exception.h \
-    crypto_io.h
+    crypto_io.h \
+    pack_io.h \
+    pack_exception.h
 
 FORMS += \
         mainwindow.ui
@@ -62,6 +66,10 @@ win32:{
     LIBS += -LC:/OpenSSL-Win32/lib/VC
     Release:LIBS += libcrypto32MD.lib libssl32MD.lib
     Debug:LIBS += libcrypto32MDd.lib libssl32MDd.lib
+
+    INCLUDEPATH += D:/dev/libarchive/include
+    LIBS += -LD:/dev/libarchive/lib
+    LIBS += archive_static.lib
 }
 
 unix:{
