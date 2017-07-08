@@ -39,7 +39,8 @@ SOURCES += \
     c_exception.cpp \
     crypto_io.cpp \
     pack_io.cpp \
-    pack_exception.cpp
+    pack_exception.cpp \
+    unpack_io.cpp
 
 HEADERS += \
         mainwindow.h \
@@ -56,7 +57,8 @@ HEADERS += \
     c_exception.h \
     crypto_io.h \
     pack_io.h \
-    pack_exception.h
+    pack_exception.h \
+    unpack_io.h
 
 FORMS += \
         mainwindow.ui

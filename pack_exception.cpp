@@ -10,5 +10,5 @@ PackException::PackException(archive *a)
 
 PackException::PackException(const std::string &msg, archive *a)
 {
-    what_str =
+    what_str = msg + ": " + archive_error_string(a);
 }

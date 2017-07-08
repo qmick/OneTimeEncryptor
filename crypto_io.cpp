@@ -5,19 +5,14 @@
 CryptoIO::CryptoIO(const std::string &filename, const char *mode)
     : filename(filename)
 {
-    open();
+    fp = fopen(filename.c_str(), mode);
+    if (!fp)
+        throw CException("cannot open");
 }
 
 CryptoIO::~CryptoIO()
 {
     close();
-}
-
-bool CryptoIO::open()
-{
-    fp = fopen(filename.c_str(), mode);
-    if (!fp)
-        throw CException("cannot open");
 }
 
 int CryptoIO::close()
@@ -27,7 +22,7 @@ int CryptoIO::close()
 
     auto ret = fclose(fp);
     if (!ret)
-        fp = NULL;
+        fp = nullptr;
     return ret;
 }
 
@@ -36,15 +31,6 @@ size_t CryptoIO::read(void *buffer, size_t size, size_t count)
     auto len = fread(buffer, size, count, fp);
     if (ferror(fp))
         throw CException("cannot read");
-    return len;
-}
-
-size_t CryptoIO::must_read(void *buffer, size_t size, size_t count)
-{
-    auto len = fread(buffer, size, count, fp);
-    if (count != len)
-        throw CException("cannot read");
-
     return len;
 }
 

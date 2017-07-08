@@ -9,12 +9,12 @@ struct archive;
 class PackException : public virtual std::exception
 {
 public:
-    explicit PackException(const archive *a);
-    PackException(const std::string &msg, const archive *a);
+    explicit PackException(archive *a);
+    PackException(const std::string &msg, archive *a);
     virtual const char* what() const noexcept;
 
 private:
-    std::string wha_str;
+    std::string what_str;
 };
 
 #endif // PACK_EXCEPTION_H
