@@ -13,11 +13,18 @@ class CryptThread : public QThread
     Q_OBJECT
 
 public:
-    CryptThread(std::shared_ptr<AsymmetricCryptor> cryptor,
-                  const QStringList &file_names);
+    enum MODE { ENCRYPTION, DECRYPTION };
+
+    static const std::string kCryptSign;
+
+    CryptThread(const QStringList &file_names);
     ~CryptThread();
-    bool should_stop;
-    QString cipher;
+    void stop();
+    void set_mode(const MODE mode);
+    void set_cipher(const QString &cipher);
+    void load_pubkey(const QString &pubkey_file);
+    void load_prikey(const QString &prikey_file, const QString &passphrase);
+    QString key_type() const;
 
 protected:
     void run();
@@ -31,8 +38,11 @@ signals:
     void job_finished();
 
 private:
-    std::shared_ptr<AsymmetricCryptor> cryptor;
+    std::unique_ptr<AsymmetricCryptor> cryptor;
     QStringList file_names;
+    bool should_stop;
+    MODE mode;
+    QString cipher;
 };
 
 #endif // ENCRYPT_THREAD_H

@@ -6,7 +6,6 @@
 #include <QTime>
 #include <QLabel>
 #include <memory>
-#include "secure_memory.h"
 
 namespace Ui {
 class MainWindow;

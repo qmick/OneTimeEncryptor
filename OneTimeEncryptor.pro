@@ -26,12 +26,6 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
         main.cpp \
         mainwindow.cpp \
-    key_generator.cpp \
-    decryptor.cpp \
-    encryptor.cpp \
-    crypto_exception.cpp \
-    secure_memory.cpp \
-    symmetric_cryptor.cpp \
     crypt_thread.cpp \
     asymmetric_cryptor.cpp \
     progress_tablemodel.cpp \
@@ -41,12 +35,6 @@ SOURCES += \
 
 HEADERS += \
         mainwindow.h \
-    key_generator.h \
-    decryptor.h \
-    encryptor.h \
-    secure_memory.h \
-    crypto_exception.h \
-    symmetric_cryptor.h \
     asymmetric_cryptor.h \
     crypt_thread.h \
     progress_tablemodel.h \
@@ -60,7 +48,8 @@ FORMS += \
 win32:{
     INCLUDEPATH += D:/dev/botan/include/botan-2
     LIBS += -LD:/dev/botan/lib
-    LIBS += botan.lib
+    Debug:LIBS += botand.lib
+    Release:LIBS += botan.lib
 }
 
 unix:{

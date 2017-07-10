@@ -1,27 +1,51 @@
 #include "crypt_thread.h"
-#include "encryptor.h"
-#include "decryptor.h"
+#include "asymmetric_cryptor.h"
 #include <QFileInfo>
 #include <QDebug>
-#include <openssl/err.h>
-#include <openssl/evp.h>
-#include <openssl/conf.h>
-#ifdef _MSC_VER
-#include <openssl/applink.c>
-#endif
 
-CryptThread::CryptThread(std::shared_ptr<AsymmetricCryptor> cryptor,
-                             const QStringList &file_names)
-    : cryptor(cryptor), file_names(file_names)
+using std::make_unique;
+
+const std::string CryptThread::kCryptSign = "[encrypted]";
+
+CryptThread::CryptThread(const QStringList &file_names)
+    : file_names(file_names)
 {
-    /* Initialise the library */
-    ERR_load_crypto_strings();
-    OpenSSL_add_all_algorithms();
+    cryptor = make_unique<AsymmetricCryptor>();
 }
 
 CryptThread::~CryptThread()
 {
-    ERR_free_strings();
+}
+
+void CryptThread::stop()
+{
+    should_stop = true;
+}
+
+void CryptThread::set_mode(const CryptThread::MODE mode)
+{
+    this->mode = mode;
+}
+
+void CryptThread::set_cipher(const QString &cipher)
+{
+    this->cipher = cipher;
+}
+
+void CryptThread::load_pubkey(const QString &pubkey_file)
+{
+    cryptor->load_public_key(std::string(pubkey_file.toLocal8Bit().data()));
+}
+
+void CryptThread::load_prikey(const QString &prikey_file, const QString &passphrase)
+{
+    cryptor->load_private_key(std::string(prikey_file.toLocal8Bit().data()),
+                              std::string(passphrase.toLocal8Bit().data()));
+}
+
+QString CryptThread::key_type() const
+{
+    return QString::fromStdString(cryptor->key_type());
 }
 
 void CryptThread::run() {
@@ -45,8 +69,17 @@ void CryptThread::run() {
 
             try
             {
+                std::string src(i.toLocal8Bit().data());
+                std::string dst(src + kCryptSign);
+                int64_t rs;
+
+                if (mode == ENCRYPTION)
+                    rs = cryptor->encrypt(src, dst, cb, cipher.toStdString());
+                else
+                    rs = cryptor->decrypt(src, dst, cb);
+
                 //If stop manually
-                if (cryptor->crypt_file(std::string(i.toLocal8Bit().data()), cb, cipher.toStdString()) < 0)
+                if (rs < 0)
                 {
                     emit file_stopped(i);
                     break;

@@ -1,3 +1,7 @@
+#ifdef _MSC_VER
+ #pragma warning(disable:4250)
+#endif
+
 #include "asymmetric_cryptor.h"
 #include "crypto_io.h"
 #include <botan/pkcs8.h>
@@ -7,6 +11,7 @@
 #include <botan/x509_key.h>
 #include <botan/curve25519.h>
 #include <botan/cipher_mode.h>
+#include <botan/symkey.h>
 #include <botan/aead.h>
 #include <botan/data_src.h>
 #include <vector>
@@ -20,8 +25,7 @@ using std::vector;
 
 struct CryptoHeader
 {
-    static void write(const Botan::Public_Key *pubkey, const string &cipher_name,
-               const vector<uint8_t> &iv, CryptoIO &out)
+    static void write(const Botan::Public_Key *pubkey, const string &cipher_name, CryptoIO &out)
     {
         // Write session public key length
         auto session_public = Botan::X509::PEM_encode(*pubkey);
@@ -37,17 +41,12 @@ struct CryptoHeader
 
         // Write cipher name
         out.write(cipher_name.c_str(), sizeof(char), name_size);
-
-        // Write iv length
-        uint32_t iv_size = qToBigEndian(static_cast<uint32_t>(iv.size()));
-        out.write(&iv_size, sizeof(iv_size), 1);
-
-        // Write iv
-        out.write(iv.data(), sizeof(uint8_t), iv.size());
     }
 
-    void read(CryptoIO &in)
+    static CryptoHeader read(CryptoIO &in)
     {
+        CryptoHeader header;
+
         // Read public key size
         uint32_t pubkey_size;
         in.must_read(&pubkey_size, 4, 1);
@@ -57,7 +56,7 @@ struct CryptoHeader
         vector<char> buf(pubkey_size);
         in.must_read(buf.data(), sizeof(char), pubkey_size);
         Botan::DataSource_Memory ds(string(buf.data()));
-        session_public = unique_ptr<Botan::Public_Key>(Botan::X509::load_key(ds));
+        header.session_public = unique_ptr<Botan::Public_Key>(Botan::X509::load_key(ds));
 
         // Read cipher name length
         uint8_t name_size;
@@ -66,33 +65,33 @@ struct CryptoHeader
 
         // Read cipher name
         in.read(buf.data(), sizeof(char), buf.size());
-        cipher_name = string(buf.data());
+        header.cipher_name = string(buf.data());
 
-        // Read iv length
-        uint32_t iv_size;
-        in.must_read(&iv_size, 4, 1);
-        iv_size = qFromBigEndian(iv_size);
-
-        // Read iv
-        iv.resize(iv_size);
-        in.must_read(iv.data(), 1, iv.size());
+        return header;
     }
 
     unique_ptr<Botan::Public_Key> session_public;
     string cipher_name;
-    vector<uint8_t> iv;
 };
 
-const string AsymmetricCryptor::kCryptSign = "[encrypted]";
 
 AsymmetricCryptor::AsymmetricCryptor()
 {
-
+    kdf = unique_ptr<Botan::KDF>(Botan::get_kdf("KDF2(SHA-256)"));
 }
 
 AsymmetricCryptor::~AsymmetricCryptor()
 {
 
+}
+
+std::string AsymmetricCryptor::key_type() const
+{
+    if (public_key)
+        return public_key->algo_name();
+    if (private_key)
+        return private_key->algo_name();
+    return "";
 }
 
 void AsymmetricCryptor::load_public_key(const std::string &pubkey_file)
@@ -117,15 +116,15 @@ int64_t AsymmetricCryptor::encrypt(const std::string &src, const std::string &ds
     if (public_key->algo_name() == "Curve25519")
     {
         Botan::AutoSeeded_RNG rng;
-        Botan::Curve25519_PublicKey master_key(*dynamic_cast<Botan::Curve25519_PublicKey*>(public_key.get()));
+        auto master_key = dynamic_cast<Botan::Curve25519_PublicKey*>(public_key.get());
         Botan::Curve25519_PrivateKey session_key(rng);
-        Botan::PK_Key_Agreement ecdh(session_key, rng, "KDF2(SHA-256)");
+        Botan::PK_Key_Agreement ecdh(session_key, rng, "Raw");
+        auto secret = ecdh.derive_key(32, master_key->public_value());
 
         auto enc = unique_ptr<Botan::Cipher_Mode>(Botan::get_cipher_mode(cipher_name, Botan::ENCRYPTION));
-        auto secret_key = ecdh.derive_key(enc->key_spec().maximum_keylength(), master_key.public_value());
-
-        vector<uint8_t> iv(enc->default_nonce_length());
-        rng.randomize(iv.data(), iv.size());
+        auto key = kdf->derive_key(enc->key_spec().maximum_keylength(), secret.bits_of(), "key");
+        auto  iv = kdf->derive_key(enc->default_nonce_length(), secret.bits_of(), "iv");
+        enc->set_key(key);
         enc->start(iv);
 
         size_t buf_size = enc->update_granularity() == 1 ? 1 << 16 : enc->update_granularity() << 12;
@@ -139,8 +138,9 @@ int64_t AsymmetricCryptor::encrypt(const std::string &src, const std::string &ds
 
         try
         {
+            // Write header
             auto session_public = dynamic_cast<Botan::Public_Key*>(&session_key);
-            CryptoHeader::write(session_public, cipher_name, iv, out);
+            CryptoHeader::write(session_public, cipher_name, out);
 
             while (!in.eof())
             {
@@ -162,14 +162,68 @@ int64_t AsymmetricCryptor::encrypt(const std::string &src, const std::string &ds
             out.remove();
             throw;
         }
+
+        return total_len;
     }
     else
         throw logic_error("unsupported public key type");
 }
 
 int64_t AsymmetricCryptor::decrypt(const std::string &src, const std::string &dst,
-                                   std::function<bool (int64_t)> callback,
-                                   const std::string &cipher_name)
+                                   std::function<bool (int64_t)> callback)
 {
-    return 0;
+    if (!private_key)
+        throw logic_error("public key not loaded");
+
+    if (private_key->algo_name() == "Curve25519")
+    {
+        Botan::AutoSeeded_RNG rng;
+        auto master_key = dynamic_cast<Botan::Curve25519_PrivateKey*>(private_key.get());
+
+        CryptoIO in(src, "rb");
+        CryptoIO out(dst, "wb");
+
+        auto header = CryptoHeader::read(in);
+
+        auto session_key = dynamic_cast<Botan::Curve25519_PrivateKey*>(header.session_public.get());
+        Botan::PK_Key_Agreement ecdh(*master_key, rng, "Raw");
+        auto secret = ecdh.derive_key(32, session_key->public_value());
+
+        auto dec = unique_ptr<Botan::Cipher_Mode>(Botan::get_cipher_mode(header.cipher_name, Botan::DECRYPTION));
+        auto key = kdf->derive_key(dec->key_spec().maximum_keylength(), secret.bits_of(), "key");
+        auto  iv = kdf->derive_key(dec->default_nonce_length(), secret.bits_of(), "iv");
+        dec->set_key(key);
+        dec->start(iv);
+
+        size_t buf_size = dec->update_granularity() == 1 ? 1 << 16 : dec->update_granularity() << 12;
+        Botan::secure_vector<uint8_t> buf(buf_size);
+        Botan::secure_vector<uint8_t> final_block(dec->minimum_final_size());
+        int64_t total_len = 0;
+
+        try
+        {
+            while (!in.eof())
+            {
+                in.read(buf.data(), sizeof(uint8_t), buf.size());
+                dec->update(buf);
+                total_len += out.write(buf.data(), sizeof(uint8_t), buf.size());
+                if (!callback(total_len))
+                {
+                    out.remove();
+                    return -1;
+                }
+            }
+
+            dec->finish(final_block);
+            out.write(final_block.data(), sizeof(uint8_t), final_block.size());
+        }
+        catch (...)
+        {
+            out.remove();
+            throw;
+        }
+        return total_len;
+    }
+    else
+        throw logic_error("unsupported public key type");
 }

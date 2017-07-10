@@ -10,17 +10,17 @@ namespace Botan
 {
     class Public_Key;
     class Private_Key;
+    class KDF;
 }
 
 
 class AsymmetricCryptor
 {
 public:
-    static const std::string kCryptSign;
-
     AsymmetricCryptor();
     virtual ~AsymmetricCryptor();
 
+    std::string key_type() const;
     void load_public_key(const std::string &pubkey_file);
     void load_private_key(const std::string &prikey_file, const std::string &passphrase);
 
@@ -35,13 +35,12 @@ public:
                     const std::string &cipher_name);
 
     int64_t decrypt(const std::string &src, const std::string &dst,
-                    std::function<bool(int64_t)> callback,
-                    const std::string &cipher_name);
+                    std::function<bool(int64_t)> callback);
 
 private:
     std::unique_ptr<Botan::Public_Key> public_key;
     std::unique_ptr<Botan::Private_Key> private_key;
-
+    std::unique_ptr<Botan::KDF> kdf;
 };
 
 

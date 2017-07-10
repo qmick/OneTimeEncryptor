@@ -1,10 +1,6 @@
-#include "encryptor.h"
-#include "decryptor.h"
 #include "crypt_thread.h"
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-#include "key_generator.h"
-#include "crypto_exception.h"
 #include "progress_delegate.h"
 #include "progress_tablemodel.h"
 
