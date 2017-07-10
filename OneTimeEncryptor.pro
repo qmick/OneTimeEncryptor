@@ -48,6 +48,8 @@ FORMS += \
 win32:{
     INCLUDEPATH += D:/dev/botan/include/botan-2
     LIBS += -LD:/dev/botan/lib
+    LIBS += Advapi32.lib
+    LIBS += user32.lib
     Debug:LIBS += botand.lib
     Release:LIBS += botan.lib
 }

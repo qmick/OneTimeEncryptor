@@ -22,6 +22,8 @@ using std::string;
 using std::unique_ptr;
 using std::logic_error;
 using std::vector;
+using std::make_unique;
+using std::dynamic_pointer_cast;
 
 struct CryptoHeader
 {
@@ -85,6 +87,33 @@ AsymmetricCryptor::~AsymmetricCryptor()
 
 }
 
+void AsymmetricCryptor::gen_key()
+{
+    Botan::AutoSeeded_RNG rng;
+    private_key = make_unique<Botan::Curve25519_PrivateKey>(rng);
+    public_key = unique_ptr<Botan::Public_Key>(private_key.get());
+    //public_key = unique_ptr<Botan::Public_Key>(dynamic_cast<Botan::Public_Key*>(private_key.get()));
+}
+
+KeyPair AsymmetricCryptor::get_key(const std::string &passphrase)
+{
+    KeyPair key_pair;
+    Botan::AutoSeeded_RNG rng;
+
+    if (public_key)
+    {
+        key_pair.type = public_key->algo_name();
+        key_pair.public_key = Botan::X509::PEM_encode(*public_key.get());
+    }
+    if (private_key)
+    {
+        key_pair.type = public_key->algo_name();
+        key_pair.private_key = Botan::PKCS8::PEM_encode(*private_key.get(), rng, passphrase);
+    }
+
+    return key_pair;
+}
+
 std::string AsymmetricCryptor::key_type() const
 {
     if (public_key)
@@ -92,6 +121,16 @@ std::string AsymmetricCryptor::key_type() const
     if (private_key)
         return private_key->algo_name();
     return "";
+}
+
+bool AsymmetricCryptor::has_pubkey() const
+{
+    return public_key != nullptr;
+}
+
+bool AsymmetricCryptor::has_prikey() const
+{
+    return private_key != nullptr;
 }
 
 void AsymmetricCryptor::load_public_key(const std::string &pubkey_file)

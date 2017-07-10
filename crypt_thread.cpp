@@ -10,7 +10,6 @@ const std::string CryptThread::kCryptSign = "[encrypted]";
 CryptThread::CryptThread(const QStringList &file_names)
     : file_names(file_names)
 {
-    cryptor = make_unique<AsymmetricCryptor>();
 }
 
 CryptThread::~CryptThread()
@@ -32,20 +31,9 @@ void CryptThread::set_cipher(const QString &cipher)
     this->cipher = cipher;
 }
 
-void CryptThread::load_pubkey(const QString &pubkey_file)
+void CryptThread::set_files(const QStringList &files)
 {
-    cryptor->load_public_key(std::string(pubkey_file.toLocal8Bit().data()));
-}
-
-void CryptThread::load_prikey(const QString &prikey_file, const QString &passphrase)
-{
-    cryptor->load_private_key(std::string(prikey_file.toLocal8Bit().data()),
-                              std::string(passphrase.toLocal8Bit().data()));
-}
-
-QString CryptThread::key_type() const
-{
-    return QString::fromStdString(cryptor->key_type());
+    file_names = files;
 }
 
 void CryptThread::run() {

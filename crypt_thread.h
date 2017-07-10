@@ -22,9 +22,7 @@ public:
     void stop();
     void set_mode(const MODE mode);
     void set_cipher(const QString &cipher);
-    void load_pubkey(const QString &pubkey_file);
-    void load_prikey(const QString &prikey_file, const QString &passphrase);
-    QString key_type() const;
+    void set_files(const QStringList &files);
 
 protected:
     void run();
@@ -38,7 +36,7 @@ signals:
     void job_finished();
 
 private:
-    std::unique_ptr<AsymmetricCryptor> cryptor;
+    std::shared_ptr<AsymmetricCryptor> cryptor;
     QStringList file_names;
     bool should_stop;
     MODE mode;

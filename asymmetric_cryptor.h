@@ -13,6 +13,13 @@ namespace Botan
     class KDF;
 }
 
+struct KeyPair
+{
+    std::string type;
+    std::string public_key;
+    std::string private_key;
+};
+
 
 class AsymmetricCryptor
 {
@@ -20,7 +27,11 @@ public:
     AsymmetricCryptor();
     virtual ~AsymmetricCryptor();
 
+    void gen_key();
+    KeyPair get_key(const std::string &passphrase);
     std::string key_type() const;
+    bool has_pubkey() const;
+    bool has_prikey() const;
     void load_public_key(const std::string &pubkey_file);
     void load_private_key(const std::string &prikey_file, const std::string &passphrase);
 

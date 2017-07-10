@@ -6,14 +6,14 @@ ProgressTableModel::ProgressTableModel()
 }
 
 
-int ProgressTableModel::rowCount(const QModelIndex &parent) const
+int ProgressTableModel::rowCount(const QModelIndex &) const
 {
     return mdata.size();
 }
 
 
 
-int ProgressTableModel::columnCount(const QModelIndex &parent) const
+int ProgressTableModel::columnCount(const QModelIndex &) const
 {
     return mheader.size();
 }

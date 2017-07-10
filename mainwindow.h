@@ -7,13 +7,14 @@
 #include <QLabel>
 #include <memory>
 
-namespace Ui {
-class MainWindow;
+namespace Ui
+{
+    class MainWindow;
 }
 
-class Encryptor;
-class Decryptor;
+struct KeyPair;
 class CryptThread;
+class AsymmetricCryptor;
 class ProgressDelegate;
 class ProgressTableModel;
 
@@ -38,14 +39,13 @@ public:
 
 private:
     std::unique_ptr<Ui::MainWindow> ui;
+    std::shared_ptr<AsymmetricCryptor> cryptor;
 
     //Path to public and private key pem file
     QString public_path;
     QString private_path;
 
-    std::shared_ptr<Encryptor> encryptor;
-    std::shared_ptr<Decryptor> decryptor;
-    std::unique_ptr<CryptThread> crypt_thread;
+    std::shared_ptr<CryptThread> crypt_thread;
     QTimer timer;
     QTime time_record;
     int count;
@@ -60,13 +60,7 @@ private:
     //Find place of file progress by its name
     QHash<QString, int> file_no;
 
-    //
-    QString current_cipher;
-
     void setup_progress(const QStringList &files);
-
-    bool load_publickey();
-    bool load_privatekey(SecureBuffer &password);
 
     /**
      * @brief setup_thread Setup working thread for encryption or decryption
@@ -75,10 +69,12 @@ private:
 
     void generate_keypair(KeyType type);
 
+    bool write_key(const std::string &pubkey, const QString &path);
+
 public slots:
     //load public and private key from pem file
-    bool load_publickey_clicked();
-    bool load_privatekey_clicked();
+    void load_publickey_clicked();
+    void load_privatekey_clicked();
 
     //
     void cipher_changed(const QString &cipher);
