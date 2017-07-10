@@ -58,14 +58,13 @@ FORMS += \
         mainwindow.ui
 
 win32:{
-    INCLUDEPATH += C:/OpenSSL-Win32/include
-    LIBS += -LC:/OpenSSL-Win32/lib/VC
-    Release:LIBS += libcrypto32MD.lib libssl32MD.lib
-    Debug:LIBS += libcrypto32MDd.lib libssl32MDd.lib
+    INCLUDEPATH += D:/dev/botan/include/botan-2
+    LIBS += -LD:/dev/botan/lib
+    LIBS += botan.lib
 }
 
 unix:{
     LIBS += -L/usr/local/lib
-    LIBS += -lcrypto -lssl
+    LIBS += -lbotan
     QMAKE_CXXFLAGS += -std=c++1y
 }

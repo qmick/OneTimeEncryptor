@@ -1,5 +1,6 @@
 #include "crypto_io.h"
 #include "c_exception.h"
+#include <cstdio>
 
 
 CryptoIO::CryptoIO(const std::string &filename, const char *mode)
@@ -35,6 +36,25 @@ size_t CryptoIO::read(void *buffer, size_t size, size_t count)
         throw CException("cannot read");
     }
     return len;
+}
+
+size_t CryptoIO::readline(char *buffer, size_t n)
+{
+    size_t pos = 0;
+    while (n > pos)
+    {
+        auto c = fgetc(fp);
+        if (ferror(fp))
+        {
+            close();
+            throw CException("cannot read");
+        }
+        if (feof(fp))
+            break;
+        buffer[pos++] = static_cast<char>(c);
+    }
+    buffer[pos] = '\0';
+    return pos;
 }
 
 size_t CryptoIO::must_read(void *buffer, size_t size, size_t count)
