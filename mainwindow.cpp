@@ -15,6 +15,8 @@
 
 using std::make_unique;
 using std::make_shared;
+using std::exception;
+using std::string;
 
 
 QString size_human(qint64 size)
@@ -34,10 +36,10 @@ QString size_human(qint64 size)
     return QString().setNum(num, 'f', 2)+" "+unit;
 }
 
-const QStringList MainWindow::kSupportedCipher = { "AES-128-CBC", "AES-128-CTR",
-                                                   "AES-192-CBC", "AES-192-CTR",
-                                                   "AES-256-CBC", "AES-256-CTR",
-                                                   "ChaCha20" };
+const QStringList MainWindow::kSupportedCipher = { "AES-128/CBC", "AES-256/CBC",
+                                                   "AES-128/CTR", "AES-256/CTR",
+                                                   "AES-128/GCM", "AES-256/GCM",
+                                                   "AES-128/OCB", "AES-256/OCB" };
 
 
 MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *parent)
@@ -45,8 +47,9 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
       progress_delegate(make_unique<ProgressDelegate>()),
       progress_model(make_unique<ProgressTableModel>())
 {
-    crypt_thread = std::make_unique<CryptThread>(files);
-    cryptor = std::make_unique<AsymmetricCryptor>();
+    crypt_thread = make_unique<CryptThread>(files);
+    cryptor = make_unique<AsymmetricCryptor>();
+    crypt_thread->set_cryptor(cryptor);
     public_path = "./public.pem";
     private_path = "./private.pem";
     auto_close = false;
@@ -61,7 +64,7 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
     ui->tableView->setModel(progress_model.get());
     ui->tableView->setItemDelegate(progress_delegate.get());
     emit progress_model->layoutChanged();
-    ui->comboBox->addItems(kSupportedCipher);
+
     connect(&timer,                     SIGNAL(timeout()),   this, SLOT(update_time()));
     connect(ui->actionECC,              SIGNAL(triggered()), this, SLOT(generate_ecckey_clicked()));
     connect(ui->actionRSA,              SIGNAL(triggered()), this, SLOT(generate_rsakey_clicked()));
@@ -86,6 +89,9 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
             this, SLOT(current_finished(const QString &)));
     connect(crypt_thread.get(), SIGNAL(file_stopped(const QString &)),
             this, SLOT(file_stopped(const QString &)));
+
+    ui->comboBox->addItems(kSupportedCipher);
+    ui->actionRSA->setDisabled(true);
 
     switch (mode)
     {
@@ -183,12 +189,10 @@ void MainWindow::generate_keypair(MainWindow::KeyType)
             if (!write_key(kp.public_key, public_path) ||
                 !write_key(kp.private_key, private_path))
                 return;
-
-            cryptor->load_public_key(std::string(public_path.toLocal8Bit().data()));
-            cryptor->load_private_key(std::string(private_path.toLocal8Bit().data()),
-                                      password.toStdString());
+            cryptor->load_public_key(public_path.toStdString());
+            cryptor->load_private_key(private_path.toStdString(), password.toStdString());
         }
-        catch (std::exception &e)
+        catch (exception &e)
         {
             //Remove generated files
             remove(public_path.toLocal8Bit().data());
@@ -202,7 +206,7 @@ void MainWindow::generate_keypair(MainWindow::KeyType)
     }
 }
 
-bool MainWindow::write_key(const std::string &pubkey, const QString &path)
+bool MainWindow::write_key(const string &pubkey, const QString &path)
 {
     QFile public_file(path);
     if (public_file.exists())
@@ -232,17 +236,38 @@ bool MainWindow::write_key(const std::string &pubkey, const QString &path)
 
 void MainWindow::load_publickey_clicked()
 {
-    cryptor->load_public_key(std::string(public_path.toLocal8Bit().data()));
+    try
+    {
+        cryptor->load_public_key(string(public_path.toLocal8Bit().data()));
+        public_label.setText(tr("Public key ready"));
+    } catch (...)
+    {
+        public_label.setText(tr("Public key not loaded"));
+    }
 }
 
 void MainWindow::load_privatekey_clicked()
 {
+    QFile file(private_path);
+    if (!file.exists())
+    {
+        private_label.setText(tr("Private key not loaded"));
+        return;
+    }
+
     bool ok;
     QString password = QInputDialog::getText(this, tr("Input password"),
                                          tr("Password:"), QLineEdit::Password,
                                          QDir::home().dirName(), &ok);
-    cryptor->load_private_key(std::string(public_path.toLocal8Bit().data()),
-                              password.toStdString());
+    try
+    {
+        cryptor->load_private_key(string(private_path.toLocal8Bit().data()),
+                                  password.toStdString());
+        private_label.setText(tr("Private key ready"));
+    } catch (...)
+    {
+        private_label.setText(tr("Private key not loaded"));
+    }
 }
 
 void MainWindow::cipher_changed(const QString &cipher)
@@ -270,7 +295,7 @@ void MainWindow::reset_password()
         auto kp = cryptor->get_key(password.toStdString());
         write_key(kp.private_key, private_path);
     }
-    catch (const std::exception &e)
+    catch (const exception &e)
     {
         QMessageBox::critical(this, tr("Error"),
                               tr("Cannot reset password: ") + e.what(),
@@ -310,6 +335,7 @@ void MainWindow::encrypt_clicked()
     {
         auto files = dialog.selectedFiles();
         crypt_thread->set_files(files);
+        crypt_thread->set_mode(CryptThread::ENCRYPTION);
         setup_progress(files);
         setup_thread();
     }
@@ -331,6 +357,7 @@ void MainWindow::decrypt_clicked()
     {
         auto files = dialog.selectedFiles();
         crypt_thread->set_files(files);
+        crypt_thread->set_mode(CryptThread::DECRYPTION);
         setup_progress(files);
         setup_thread(); 
     }
@@ -393,7 +420,7 @@ void MainWindow::job_finished()
     ui->action_Decrypt->setDisabled(false);
     ui->action_Encrypt->setDisabled(false);
     ui->actionECC->setDisabled(false);
-    ui->actionRSA->setDisabled(false);
+//    ui->actionRSA->setDisabled(false);
 }
 
 void MainWindow::stop_job()

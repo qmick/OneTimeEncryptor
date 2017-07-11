@@ -55,7 +55,8 @@ win32:{
 }
 
 unix:{
+    INCLUDEPATH += /usr/local/include/botan-2
     LIBS += -L/usr/local/lib
-    LIBS += -lbotan
+    LIBS += -lbotan-2
     QMAKE_CXXFLAGS += -std=c++1y
 }

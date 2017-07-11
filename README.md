@@ -26,12 +26,12 @@
 
 Qt版本: Qt 5.0或更高。Qt 5.2.1 Linux 和 Qt 5.9 MSVC2015 32bit 已经过测试
 
-OpenSSL版本: OpenSSL v1.1.0或更高。[Win32 OpenSSL v1.1.0f](https://slproweb.com/download/Win32OpenSSL-1_1_0f.exe) 已经过测试
+Botan版本:Botan-2或更高。Botan-2.1.0已经过测试
 
 ### 步骤
-1. git clone 
+1. `git clone `
 2. 打开 `OneTimeEncryptor.pro`
-3. 修改 `INCLUDEPATH +=` 和  `LIBS +=` 到OpenSSL的实际位置
+3. 修改 `INCLUDEPATH +=` 和  `LIBS +=` 到Botan的实际位置
 4. qmake && make 或者用QtCreator打开项目编译
 
 # OneTimeEncryptor
@@ -67,11 +67,11 @@ Compiler: G++4.9 or higher. G++4.9.4 and Visual Studio 2015 update 3 are tested
 
 Qt: Qt 5.0 or higher. Qt 5.2.1 Linux and Qt 5.9 MSVC2015 32bit are tested
 
-OpenSSL: OpenSSL v1.1.0 or higher. [Win32 OpenSSL v1.1.0f](https://slproweb.com/download/Win32OpenSSL-1_1_0f.exe) tested
+Botan: Botan-2 or higher. Botan-2.1.0 tested
 
 ### Step
 
 1. Clone this repo
 2. Open `OneTimeEncryptor.pro` with QtCreator
-3. Modifiy `INCLUDEPATH +=` and  `LIBS +=` to where OpenSSL actually locates
+3. Modifiy `INCLUDEPATH +=` and  `LIBS +=` to where Botan actually locates
 4. qmake && make or use QtCreator open this project and compile

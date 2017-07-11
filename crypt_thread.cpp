@@ -4,8 +4,12 @@
 #include <QDebug>
 
 using std::make_unique;
+using std::function;
+using std::shared_ptr;
+using std::string;
+using std::exception;
 
-const std::string CryptThread::kCryptSign = "[encrypted]";
+const QString CryptThread::kCryptSign = "[encrypted]";
 
 CryptThread::CryptThread(const QStringList &file_names)
     : file_names(file_names)
@@ -36,9 +40,13 @@ void CryptThread::set_files(const QStringList &files)
     file_names = files;
 }
 
-void CryptThread::run() {
-    int count = 0;
+void CryptThread::set_cryptor(shared_ptr<AsymmetricCryptor> cryptor)
+{
+    this->cryptor = cryptor;
+}
 
+void CryptThread::run()
+{
     should_stop = false;
     for (auto &i : file_names)
     {
@@ -47,7 +55,7 @@ void CryptThread::run() {
         if (f.exists() && f.isFile() && f.size() > 0)
         {
             //Callback that used to recieve progress and send stop signal
-            std::function<bool(int64_t)> cb = [&](int64_t bytes) {
+            function<bool(int64_t)> cb = [&](int64_t bytes) {
                 auto total = static_cast<double>(f.size());
                 auto current  = static_cast<double>(bytes);
                 auto progress = static_cast<int>(current / total * 100.0);
@@ -57,14 +65,24 @@ void CryptThread::run() {
 
             try
             {
-                std::string src(i.toLocal8Bit().data());
-                std::string dst(src + kCryptSign);
+                string src(i.toLocal8Bit().data());
+                string dst;
                 int64_t rs;
 
                 if (mode == ENCRYPTION)
+                {
+                    dst = (i + kCryptSign).toLocal8Bit().data();
                     rs = cryptor->encrypt(src, dst, cb, cipher.toStdString());
+                }
                 else
+                {
+                    auto pos = i.indexOf(kCryptSign);
+                    if (pos > 0)
+                        dst = i.remove(pos, kCryptSign.size()).toLocal8Bit().data();
+                    else
+                        dst = (i + "[plain]").toLocal8Bit().data();
                     rs = cryptor->decrypt(src, dst, cb);
+                }
 
                 //If stop manually
                 if (rs < 0)
@@ -72,10 +90,9 @@ void CryptThread::run() {
                     emit file_stopped(i);
                     break;
                 }
-                count++;
                 emit current_finished(i);
             }
-            catch (std::exception &e)
+            catch (exception &e)
             {
                 emit file_failed(i, QString(e.what()));
             }  

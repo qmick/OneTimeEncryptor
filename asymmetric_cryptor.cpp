@@ -14,16 +14,24 @@
 #include <botan/symkey.h>
 #include <botan/aead.h>
 #include <botan/data_src.h>
+#include <botan/pipe.h>
+#include <botan/cipher_filter.h>
+#include <botan/data_snk.h>
+#include <botan/data_src.h>
+#include <botan/lookup.h>
+#include <botan/secmem.h>
 #include <vector>
 #include <stdexcept>
 #include <QtEndian>
+#include <QDebug>
 
 using std::string;
 using std::unique_ptr;
 using std::logic_error;
+using std::runtime_error;
 using std::vector;
 using std::make_unique;
-using std::dynamic_pointer_cast;
+using std::function;
 
 struct CryptoHeader
 {
@@ -51,7 +59,7 @@ struct CryptoHeader
 
         // Read public key size
         uint32_t pubkey_size;
-        in.must_read(&pubkey_size, 4, 1);
+        in.must_read(&pubkey_size, sizeof(uint32_t), 1);
         pubkey_size = qFromBigEndian(pubkey_size);
 
         // Read public key
@@ -76,6 +84,50 @@ struct CryptoHeader
     string cipher_name;
 };
 
+int64_t cipher_file(const Botan::SymmetricKey &secret, const Botan::KDF *kdf,
+                    CryptoIO &src, CryptoIO &dst, function<bool (int64_t)> callback,
+                    const string &cipher_name, Botan::Cipher_Dir direction)
+{
+    auto mode = Botan::get_cipher_mode(cipher_name, direction);
+    auto cipher_filter = new Botan::Cipher_Mode_Filter(mode);
+
+    auto key = kdf->derive_key(mode->key_spec().maximum_keylength(), secret.bits_of(), "key");
+    cipher_filter->set_key(key);
+
+    if (mode->default_nonce_length() > 0)
+    {
+        auto iv = kdf->derive_key(mode->default_nonce_length(), secret.bits_of(), "iv");
+        cipher_filter->set_iv(iv);
+    }
+
+    Botan::secure_vector<uint8_t> buffer(1 << 16);
+    Botan::Pipe pipe(cipher_filter);
+    pipe.start_msg();
+
+    int64_t total_len = 0;
+
+    while (!src.eof())
+    {
+        auto len = src.read(buffer.data(), sizeof(uint8_t), buffer.size());
+        pipe.write(buffer.data(), len);
+        if (src.eof())
+        {
+            pipe.end_msg();
+        }
+        while (pipe.remaining() > 0)
+        {
+            const size_t buffered = pipe.read(buffer.data(), buffer.size());
+            total_len += dst.write(buffer.data(), sizeof(uint8_t), buffered);
+            if (!callback(total_len))
+            {
+                dst.remove();
+                return -1;
+            }
+        }
+    }
+
+    return total_len;
+}
 
 AsymmetricCryptor::AsymmetricCryptor()
 {
@@ -90,9 +142,9 @@ AsymmetricCryptor::~AsymmetricCryptor()
 void AsymmetricCryptor::gen_key()
 {
     Botan::AutoSeeded_RNG rng;
-    private_key = make_unique<Botan::Curve25519_PrivateKey>(rng);
-    public_key = unique_ptr<Botan::Public_Key>(private_key.get());
-    //public_key = unique_ptr<Botan::Public_Key>(dynamic_cast<Botan::Public_Key*>(private_key.get()));
+    auto key = make_unique<Botan::Curve25519_PrivateKey>(rng);
+    public_key  = make_unique<Botan::Curve25519_PublicKey>(key->public_value());
+    private_key = move(key);
 }
 
 KeyPair AsymmetricCryptor::get_key(const std::string &passphrase)
@@ -142,12 +194,13 @@ void AsymmetricCryptor::load_private_key(const std::string &prikey_file,
                                          const std::string &passphrase)
 {
     Botan::AutoSeeded_RNG rng;
-    private_key = unique_ptr<Botan::Private_Key>(Botan::PKCS8::load_key(prikey_file, rng, passphrase));
+    auto ptr = Botan::PKCS8::load_key(prikey_file, rng, passphrase);
+    private_key = unique_ptr<Botan::Private_Key>(ptr);
 }
 
 int64_t AsymmetricCryptor::encrypt(const std::string &src, const std::string &dst,
                                    std::function<bool (int64_t)> callback,
-                                   const std::string &cipher_name)
+                                   const std::string &cipher_name) const
 {
     if (!public_key)
         throw logic_error("public key not loaded");
@@ -160,20 +213,8 @@ int64_t AsymmetricCryptor::encrypt(const std::string &src, const std::string &ds
         Botan::PK_Key_Agreement ecdh(session_key, rng, "Raw");
         auto secret = ecdh.derive_key(32, master_key->public_value());
 
-        auto enc = unique_ptr<Botan::Cipher_Mode>(Botan::get_cipher_mode(cipher_name, Botan::ENCRYPTION));
-        auto key = kdf->derive_key(enc->key_spec().maximum_keylength(), secret.bits_of(), "key");
-        auto  iv = kdf->derive_key(enc->default_nonce_length(), secret.bits_of(), "iv");
-        enc->set_key(key);
-        enc->start(iv);
-
-        size_t buf_size = enc->update_granularity() == 1 ? 1 << 16 : enc->update_granularity() << 12;
-        Botan::secure_vector<uint8_t> buf(buf_size);
-        Botan::secure_vector<uint8_t> final_block(enc->minimum_final_size());
-
         CryptoIO in(src, "rb");
         CryptoIO out(dst, "wb");
-
-        int64_t total_len = 0;
 
         try
         {
@@ -181,20 +222,7 @@ int64_t AsymmetricCryptor::encrypt(const std::string &src, const std::string &ds
             auto session_public = dynamic_cast<Botan::Public_Key*>(&session_key);
             CryptoHeader::write(session_public, cipher_name, out);
 
-            while (!in.eof())
-            {
-                in.read(buf.data(), sizeof(uint8_t), buf.size());
-                enc->update(buf);
-                total_len += out.write(buf.data(), sizeof(uint8_t), buf.size());
-                if (!callback(total_len))
-                {
-                    out.remove();
-                    return -1;
-                }
-            }
-
-            enc->finish(final_block);
-            out.write(final_block.data(), sizeof(uint8_t), final_block.size());
+            return cipher_file(secret, kdf.get(), in, out, callback, cipher_name, Botan::ENCRYPTION);
         }
         catch (...)
         {
@@ -202,14 +230,13 @@ int64_t AsymmetricCryptor::encrypt(const std::string &src, const std::string &ds
             throw;
         }
 
-        return total_len;
     }
     else
         throw logic_error("unsupported public key type");
 }
 
 int64_t AsymmetricCryptor::decrypt(const std::string &src, const std::string &dst,
-                                   std::function<bool (int64_t)> callback)
+                                   std::function<bool (int64_t)> callback) const
 {
     if (!private_key)
         throw logic_error("public key not loaded");
@@ -223,46 +250,24 @@ int64_t AsymmetricCryptor::decrypt(const std::string &src, const std::string &ds
         CryptoIO out(dst, "wb");
 
         auto header = CryptoHeader::read(in);
-
-        auto session_key = dynamic_cast<Botan::Curve25519_PrivateKey*>(header.session_public.get());
+        auto session_key = dynamic_cast<Botan::Curve25519_PublicKey*>(header.session_public.get());
+        if (!session_key)
+            throw runtime_error("invalid session public key");
         Botan::PK_Key_Agreement ecdh(*master_key, rng, "Raw");
         auto secret = ecdh.derive_key(32, session_key->public_value());
 
-        auto dec = unique_ptr<Botan::Cipher_Mode>(Botan::get_cipher_mode(header.cipher_name, Botan::DECRYPTION));
-        auto key = kdf->derive_key(dec->key_spec().maximum_keylength(), secret.bits_of(), "key");
-        auto  iv = kdf->derive_key(dec->default_nonce_length(), secret.bits_of(), "iv");
-        dec->set_key(key);
-        dec->start(iv);
-
-        size_t buf_size = dec->update_granularity() == 1 ? 1 << 16 : dec->update_granularity() << 12;
-        Botan::secure_vector<uint8_t> buf(buf_size);
-        Botan::secure_vector<uint8_t> final_block(dec->minimum_final_size());
-        int64_t total_len = 0;
-
         try
         {
-            while (!in.eof())
-            {
-                in.read(buf.data(), sizeof(uint8_t), buf.size());
-                dec->update(buf);
-                total_len += out.write(buf.data(), sizeof(uint8_t), buf.size());
-                if (!callback(total_len))
-                {
-                    out.remove();
-                    return -1;
-                }
-            }
-
-            dec->finish(final_block);
-            out.write(final_block.data(), sizeof(uint8_t), final_block.size());
+            return cipher_file(secret, kdf.get(), in, out, callback, header.cipher_name, Botan::DECRYPTION);
         }
         catch (...)
         {
             out.remove();
             throw;
         }
-        return total_len;
     }
     else
         throw logic_error("unsupported public key type");
 }
+
+

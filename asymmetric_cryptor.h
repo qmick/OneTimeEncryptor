@@ -20,7 +20,6 @@ struct KeyPair
     std::string private_key;
 };
 
-
 class AsymmetricCryptor
 {
 public:
@@ -43,10 +42,12 @@ public:
      */
     int64_t encrypt(const std::string &src, const std::string &dst,
                     std::function<bool(int64_t)> callback,
-                    const std::string &cipher_name);
+                    const std::string &cipher_name) const;
 
     int64_t decrypt(const std::string &src, const std::string &dst,
-                    std::function<bool(int64_t)> callback);
+                    std::function<bool(int64_t)> callback) const;
+
+
 
 private:
     std::unique_ptr<Botan::Public_Key> public_key;

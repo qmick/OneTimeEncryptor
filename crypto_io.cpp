@@ -1,7 +1,9 @@
 #include "crypto_io.h"
 #include "c_exception.h"
 #include <cstdio>
+#include <stdexcept>
 
+using std::logic_error;
 
 CryptoIO::CryptoIO(const std::string &filename, const char *mode)
     : filename(filename)
@@ -63,7 +65,7 @@ size_t CryptoIO::must_read(void *buffer, size_t size, size_t count)
     if (count != len)
     {
         close();
-        throw CException("cannot read");
+        throw logic_error("cannot read");
     }
 
     return len;

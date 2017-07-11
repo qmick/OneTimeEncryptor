@@ -15,7 +15,7 @@ class CryptThread : public QThread
 public:
     enum MODE { ENCRYPTION, DECRYPTION };
 
-    static const std::string kCryptSign;
+    static const QString kCryptSign;
 
     CryptThread(const QStringList &file_names);
     ~CryptThread();
@@ -23,6 +23,7 @@ public:
     void set_mode(const MODE mode);
     void set_cipher(const QString &cipher);
     void set_files(const QStringList &files);
+    void set_cryptor(std::shared_ptr<AsymmetricCryptor> cryptor);
 
 protected:
     void run();
