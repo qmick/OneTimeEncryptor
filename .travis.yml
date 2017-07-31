@@ -20,7 +20,7 @@ install:
   - tar xzf 2.1.0.tar.gz
   - cd botan-2.1.0
   - ./configure.py
-  - make>/dev/null
+  - make -j$(nproc)>/dev/null
   - sudo make install>/dev/null 2>&1
   - cd ..
   - qmake -v
