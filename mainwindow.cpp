@@ -191,6 +191,8 @@ void MainWindow::generate_keypair(MainWindow::KeyType)
                 return;
             cryptor->load_public_key(public_path.toStdString());
             cryptor->load_private_key(private_path.toStdString(), password.toStdString());
+            public_label.setText(tr("Public key ready"));
+            private_label.setText(tr("Private key ready"));
         }
         catch (exception &e)
         {

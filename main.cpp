@@ -8,7 +8,7 @@ int main(int argc, char *argv[])
     MainWindow::Mode m = MainWindow::ALL;
     QStringList files;
 
-    //./OneTimeEncryptor [enc|dec|all] file1 file2...
+    //./OneTimeEncryptor [enc|dec] file1 file2...
     if (argc > 1)
     {
         QString arg = argv[1];

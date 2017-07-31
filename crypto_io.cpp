@@ -1,16 +1,18 @@
 #include "crypto_io.h"
-#include "c_exception.h"
+#include <system_error>
 #include <cstdio>
 #include <stdexcept>
 
 using std::logic_error;
+using std::system_error;
+using std::system_category;
 
 CryptoIO::CryptoIO(const std::string &filename, const char *mode)
     : filename(filename)
 {
     fp = fopen(filename.c_str(), mode);
     if (!fp)
-        throw CException("cannot open");
+        throw system_error(errno, system_category());
 }
 
 CryptoIO::~CryptoIO()
@@ -35,7 +37,7 @@ size_t CryptoIO::read(void *buffer, size_t size, size_t count)
     if (ferror(fp))
     {
         close();
-        throw CException("cannot read");
+        throw system_error(errno, system_category());
     }
     return len;
 }
@@ -49,7 +51,7 @@ size_t CryptoIO::readline(char *buffer, size_t n)
         if (ferror(fp))
         {
             close();
-            throw CException("cannot read");
+            throw system_error(errno, system_category());
         }
         if (feof(fp))
             break;
@@ -77,7 +79,7 @@ size_t CryptoIO::write(const void *buffer, size_t size, size_t count)
     if (len != count)
     {
         close();
-        throw CException("cannot write");
+        throw system_error(errno, system_category());
     }
 
     return len;

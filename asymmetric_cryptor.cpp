@@ -89,40 +89,43 @@ int64_t cipher_file(const Botan::SymmetricKey &secret, const Botan::KDF *kdf,
                     const string &cipher_name, Botan::Cipher_Dir direction)
 {
     auto mode = Botan::get_cipher_mode(cipher_name, direction);
-    auto cipher_filter = new Botan::Cipher_Mode_Filter(mode);
-
     auto key = kdf->derive_key(mode->key_spec().maximum_keylength(), secret.bits_of(), "key");
-    cipher_filter->set_key(key);
-
-    if (mode->default_nonce_length() > 0)
-    {
-        auto iv = kdf->derive_key(mode->default_nonce_length(), secret.bits_of(), "iv");
-        cipher_filter->set_iv(iv);
-    }
-
+    Botan::secure_vector<uint8_t> iv;
     Botan::secure_vector<uint8_t> buffer(1 << 16);
-    Botan::Pipe pipe(cipher_filter);
-    pipe.start_msg();
-
     int64_t total_len = 0;
 
-    while (!src.eof())
+    if (mode->default_nonce_length() > 0)
+        iv = kdf->derive_key(mode->default_nonce_length(), secret.bits_of(), "iv");
+    else
+    {
+        // find a valid key length for stream cipher
+        size_t i = 1;
+        for (; i <= 64; i++)
+            if (mode->valid_nonce_length(i)) break;
+        if (i <= 64)
+            iv = kdf->derive_key(i, secret.bits_of(), "iv");
+    }
+
+    mode->set_key(key);
+    mode->start(iv);
+
+    while (true)
     {
         auto len = src.read(buffer.data(), sizeof(uint8_t), buffer.size());
-        pipe.write(buffer.data(), len);
         if (src.eof())
         {
-            pipe.end_msg();
+            buffer.resize(len);
+            mode->finish(buffer);
+            dst.write(buffer.data(), sizeof(uint8_t), buffer.size());
+            total_len += len;
+            break;
         }
-        while (pipe.remaining() > 0)
+        dst.write(buffer.data(), sizeof(uint8_t), buffer.size());
+        total_len += len;
+        if (!callback(total_len))
         {
-            const size_t buffered = pipe.read(buffer.data(), buffer.size());
-            total_len += dst.write(buffer.data(), sizeof(uint8_t), buffered);
-            if (!callback(total_len))
-            {
-                dst.remove();
-                return -1;
-            }
+            dst.remove();
+            return -1;
         }
     }
 

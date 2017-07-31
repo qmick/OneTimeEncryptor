@@ -94,7 +94,7 @@ void CryptThread::run()
             }
             catch (exception &e)
             {
-                emit file_failed(i, QString(e.what()));
+                emit file_failed(i, QString::fromLocal8Bit(e.what()));
             }  
         }
         else
