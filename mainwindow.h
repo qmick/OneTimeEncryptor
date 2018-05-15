@@ -15,6 +15,7 @@ class MainWindow;
 class Encryptor;
 class Decryptor;
 class CryptThread;
+class MsgCryptor;
 class ProgressDelegate;
 class ProgressTableModel;
 
@@ -47,6 +48,7 @@ private:
     std::shared_ptr<Encryptor> encryptor;
     std::shared_ptr<Decryptor> decryptor;
     std::unique_ptr<CryptThread> crypt_thread;
+    std::unique_ptr<MsgCryptor> msg_cryptor;
     QTimer timer;
     QTime time_record;
     int count;
@@ -97,6 +99,10 @@ public slots:
     //Encrypt or decrypt file(s)
     void encrypt_clicked();
     void decrypt_clicked();
+
+    //
+    void encrypt_msg_clicked();
+    void decrypt_msg_clicked();
 
     //Get filename that being processed currently
     void current_file(const QString &filename, const qint64 filesize);

@@ -1,6 +1,7 @@
 #include "encryptor.h"
 #include "decryptor.h"
 #include "crypt_thread.h"
+#include "msg_cryptor.h"
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "key_generator.h"
@@ -266,6 +267,8 @@ bool MainWindow::load_publickey()
                 QMessageBox::critical(this, "Error", tr("Unsupported Key type"), QMessageBox::Abort);
                 return false;
             }
+            msg_cryptor->set_pubkey(key);
+
             return true;
         }
         catch (const std::exception &e)
@@ -306,6 +309,7 @@ bool MainWindow::load_privatekey(SecureBuffer &password)
                 QMessageBox::critical(this, "Error", tr("Unsupported Key type"), QMessageBox::Abort);
                 return false;
             }
+            msg_cryptor->set_private_key(key);
 
             return true;
         }
@@ -408,6 +412,16 @@ void MainWindow::decrypt_clicked()
         setup_progress(files);
         setup_thread(); 
     }
+}
+
+void MainWindow::encrypt_msg_clicked()
+{
+    
+}
+
+void MainWindow::decrypt_msg_clicked()
+{
+    
 }
 
 void MainWindow::current_file(const QString &filename, const qint64 filesize)

@@ -37,7 +37,8 @@ SOURCES += \
     progress_tablemodel.cpp \
     progress_delegate.cpp \
     c_exception.cpp \
-    crypto_io.cpp
+    crypto_io.cpp \
+    msg_cryptor.cpp
 
 HEADERS += \
         mainwindow.h \
@@ -52,7 +53,8 @@ HEADERS += \
     progress_tablemodel.h \
     progress_delegate.h \
     c_exception.h \
-    crypto_io.h
+    crypto_io.h \
+    msg_cryptor.h
 
 FORMS += \
         mainwindow.ui
