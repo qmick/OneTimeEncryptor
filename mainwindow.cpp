@@ -77,6 +77,11 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
     connect(ui->action_Reset_password,  SIGNAL(triggered()), this, SLOT(reset_password()));
     connect(ui->comboBox,               SIGNAL(currentTextChanged(QString)),
             this, SLOT(cipher_changed(const QString&)));
+    connect(ui->action_encrypt_msg, SIGNAL(triggered()), this, SLOT(encrypt_msg_clicked()));
+    connect(ui->action_decrypt_msg, SIGNAL(triggered()), this, SLOT(decrypt_msg_clicked()));
+    connect(&encrypt_dialog, SIGNAL(encrypt(const QString &)), this, SLOT(encrypt_msg(const QString &)));
+    connect(&encrypt_dialog, SIGNAL(decrypt(const QString &)), this, SLOT(decrypt_msg(const QString &)));
+
 
     ui->comboBox->addItems(kSupportedCipher);
 
@@ -249,7 +254,7 @@ bool MainWindow::load_publickey()
         {
             encryptor = std::make_shared<Encryptor>(public_path.toStdString());
 
-            //Get private key type
+            //Get public key type
             auto key = encryptor->get_key();
             switch (EVP_PKEY_id(key.get()))
             {
@@ -267,8 +272,9 @@ bool MainWindow::load_publickey()
                 QMessageBox::critical(this, "Error", tr("Unsupported Key type"), QMessageBox::Abort);
                 return false;
             }
+            if (!msg_cryptor)
+                msg_cryptor = make_unique<MsgCryptor>();
             msg_cryptor->set_pubkey(key);
-
             return true;
         }
         catch (const std::exception &e)
@@ -309,6 +315,8 @@ bool MainWindow::load_privatekey(SecureBuffer &password)
                 QMessageBox::critical(this, "Error", tr("Unsupported Key type"), QMessageBox::Abort);
                 return false;
             }
+            if (!msg_cryptor)
+                msg_cryptor = make_unique<MsgCryptor>();
             msg_cryptor->set_private_key(key);
 
             return true;
@@ -416,12 +424,47 @@ void MainWindow::decrypt_clicked()
 
 void MainWindow::encrypt_msg_clicked()
 {
-    
+    encrypt_dialog.show();
 }
 
 void MainWindow::decrypt_msg_clicked()
 {
-    
+    encrypt_dialog.show();
+}
+
+void MainWindow::encrypt_msg(const QString &msg)
+{
+    QByteArray qbytes = msg.toLocal8Bit();
+    std::vector<byte> in(qbytes.begin(), qbytes.end());
+    std::vector<byte> out;
+    try
+    {
+        out = msg_cryptor->encrypt(in, current_cipher.toStdString());
+    }
+    catch (std::exception e)
+    {
+        QMessageBox::critical(this, "Error", e.what(), QMessageBox::Ok);
+        return;
+    }
+    qbytes = QByteArray::fromRawData(reinterpret_cast<const char*>(out.data()), out.size());
+    encrypt_dialog.set_text(qbytes.toBase64());
+}
+
+void MainWindow::decrypt_msg(const QString &cipher)
+{
+    QByteArray qbytes = QByteArray::fromBase64(cipher.toUtf8());
+    std::vector<byte> in(qbytes.begin(), qbytes.end());
+    std::vector<byte> out;
+    try
+    {
+        out = msg_cryptor->decrypt(in);
+    }
+    catch (std::exception e)
+    {
+        QMessageBox::critical(this, "Error", e.what(), QMessageBox::Ok);
+        return;
+    }
+    encrypt_dialog.set_text(QString::fromLocal8Bit(reinterpret_cast<const char*>(out.data())));
 }
 
 void MainWindow::current_file(const QString &filename, const qint64 filesize)

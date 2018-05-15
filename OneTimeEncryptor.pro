@@ -38,7 +38,8 @@ SOURCES += \
     progress_delegate.cpp \
     c_exception.cpp \
     crypto_io.cpp \
-    msg_cryptor.cpp
+    msg_cryptor.cpp \
+    encryption_dialog.cpp
 
 HEADERS += \
         mainwindow.h \
@@ -54,10 +55,12 @@ HEADERS += \
     progress_delegate.h \
     c_exception.h \
     crypto_io.h \
-    msg_cryptor.h
+    msg_cryptor.h \
+    encryption_dialog.h
 
 FORMS += \
-        mainwindow.ui
+        mainwindow.ui \
+    dialog.ui
 
 win32:{
     INCLUDEPATH += C:/OpenSSL-Win32/include

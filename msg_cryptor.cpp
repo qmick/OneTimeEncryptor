@@ -1,39 +1,34 @@
 #include "msg_cryptor.h"
 #include "crypto_exception.h"
+#include <exception>
+#include <openssl/evp.h>
 
 MsgCryptor::MsgCryptor()
 {
-
 }
 
-void MsgCryptor::set_pubkey(const EVP_PKEY_ptr key)
+void MsgCryptor::set_pubkey(EVP_PKEY_ptr &key)
 {
     pubkey = key;
+    key_type = EVP_PKEY_id(pubkey.get());
 }
 
-const EVP_PKEY_ptr MsgCryptor::get_pubkey() const
-{
-    return pubkey;
-}
-
-void MsgCryptor::set_private_key(const EVP_PKEY_ptr key)
+void MsgCryptor::set_private_key(EVP_PKEY_ptr &key)
 {
     private_key = key;
-}
-
-const EVP_PEKY_ptr MsgCryptor::get_private_key() const
-{
-    return private_key;
+    key_type = EVP_PKEY_id(private_key.get());
 }
 
 std::vector<byte> MsgCryptor::encrypt(const std::vector<byte> &in, const std::string &cipher_name)
 {
+    if (!pubkey)
+        throw std::runtime_error("Public key not set");
     if (in.size() < 1)
         return std::vector<byte>();
     auto cipher = EVP_get_cipherbyname(cipher_name.c_str());
 
     if (!cipher)
-        throw runtime_error("not a valid cipher name");
+        throw std::runtime_error("not a valid cipher name");
     int32_t cipher_nid = EVP_CIPHER_nid(cipher);
 
     EVP_CIPHER_CTX_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
@@ -42,13 +37,15 @@ std::vector<byte> MsgCryptor::encrypt(const std::vector<byte> &in, const std::st
         SecureBuffer key = SecureBuffer(static_cast<size_t>(EVP_PKEY_size(pubkey.get())));
         SecureBuffer iv = SecureBuffer(static_cast<size_t>(EVP_CIPHER_iv_length(cipher)));
         int key_len;
-        if (1 != EVP_SealInit(ctx.get(), cipher, &key.get(), &key_len, iv.get(), &pubkey.get(), 1))
+        auto tmp_key = key.get();
+        auto tmp_pubkey = pubkey.get();
+        if (1 != EVP_SealInit(ctx.get(), cipher, &tmp_key, &key_len, iv.get(), &tmp_pubkey, 1))
             throw CryptoException();
         key.resize(static_cast<size_t>(key_len));
 
-        const int block_size = evp_cipher_block_size(cipher);
+        const size_t block_size = EVP_CIPHER_block_size(cipher);
         std::vector<byte> out(sizeof(int32_t) + key.size() + iv.size() + in.size() + block_size - 1 + block_size);
-        int ptr = 0;
+        size_t ptr = 0;
 
         // Write cipher type id
         memcpy(&out[ptr], &cipher_nid, sizeof(int32_t));
@@ -62,7 +59,7 @@ std::vector<byte> MsgCryptor::encrypt(const std::vector<byte> &in, const std::st
 
         // Write cipher text
         int out_len;
-        if (1 != EVP_SealUpdate(ctx.get(), &out[ptr], &out_len, &in[0], static_cast<int>(in.size())))
+        if (1 != EVP_SealUpdate(ctx.get(), &out[ptr], &out_len, &in[0], in.size()))
             throw CryptoException();
         ptr += out_len;
 
@@ -80,7 +77,55 @@ std::vector<byte> MsgCryptor::encrypt(const std::vector<byte> &in, const std::st
     }
 }
 
-std::vector<byte> MsgCryptor::decrypt(const std::vector<byte> &in, const std::string &cipher_name)
+std::vector<byte> MsgCryptor::decrypt(const std::vector<byte> &in)
 {
+    if (!private_key)
+        throw std::runtime_error("Private key not set");
+    if (in.size() < sizeof(int32_t))
+        throw std::runtime_error("Not cipher message");
+    size_t ptr = 0;
 
+    // Read cipher type
+    int32_t cipher_nid;
+    memcpy(&cipher_nid, &in[ptr], sizeof(int32_t));
+    ptr += sizeof(int32_t);
+
+    auto cipher = EVP_get_cipherbynid(cipher_nid);
+    if (!cipher)
+        throw CryptoException();
+
+    EVP_CIPHER_CTX_ptr ctx(EVP_CIPHER_CTX_new(), ::EVP_CIPHER_CTX_free);
+    if (key_type == EVP_PKEY_RSA)
+    {
+        // Read encrypted key
+        SecureBuffer key = SecureBuffer(static_cast<size_t>(EVP_PKEY_size(private_key.get())));
+        memcpy(key.get(), &in[ptr], key.size());
+        ptr += key.size();
+
+        // Read iv
+        SecureBuffer iv = SecureBuffer(static_cast<size_t>(EVP_CIPHER_iv_length(cipher)));
+        memcpy(iv.get(), &in[ptr], iv.size());
+        ptr += iv.size();
+
+        if (1 != EVP_OpenInit(ctx.get(), cipher, key.get(), key.size(), iv.get(), private_key.get()))
+            throw CryptoException();
+
+        std::vector<byte> out(in.size());
+
+        // Write cipher text
+        int out_len;
+        if (1 != EVP_OpenUpdate(ctx.get(), &out[0], &out_len, &in[ptr], in.size() - ptr))
+            throw CryptoException();
+
+        // Write final block cipher
+        int final_len;
+        if (1 != EVP_OpenFinal(ctx.get(), &out[out_len], &final_len))
+            throw CryptoException();
+        out.resize(out_len + final_len);
+        return out;
+    }
+    else //if (key_type == EVP_PKEY_EC || key_type == NID_X25519)
+    {
+        throw CryptoException();
+    }
 }

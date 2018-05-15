@@ -9,12 +9,10 @@ class MsgCryptor
 public:
     MsgCryptor();
 
-    void set_pubkey(const EVP_PKEY_ptr key);
-    const EVP_PKEY_ptr get_pubkey() const;
-    void set_private_key(const EVP_PKEY_ptr key);
-    const EVP_PEKY_ptr get_private_key() const;
+    void set_pubkey(EVP_PKEY_ptr &key);
+    void set_private_key(EVP_PKEY_ptr &key);
     std::vector<byte> encrypt(const std::vector<byte> &in, const std::string &cipher_name);
-    std::vector<byte> decrypt(const std::vector<byte> &in, const std::string &cipher_name);
+    std::vector<byte> decrypt(const std::vector<byte> &in);
 
 public:
     EVP_PKEY_ptr pubkey;

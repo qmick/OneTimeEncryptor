@@ -119,8 +119,8 @@
     <property name="title">
      <string>&amp;Message</string>
     </property>
-    <addaction name="action_Encrypt_2"/>
-    <addaction name="action_Decrypt_2"/>
+    <addaction name="action_encrypt_msg"/>
+    <addaction name="action_decrypt_msg"/>
    </widget>
    <addaction name="menu_File"/>
    <addaction name="menu_Message"/>
@@ -176,12 +176,12 @@
     <string>RSA</string>
    </property>
   </action>
-  <action name="action_Encrypt_2">
+  <action name="action_encrypt_msg">
    <property name="text">
     <string>&amp;Encrypt</string>
    </property>
   </action>
-  <action name="action_Decrypt_2">
+  <action name="action_decrypt_msg">
    <property name="text">
     <string>&amp;Decrypt</string>
    </property>

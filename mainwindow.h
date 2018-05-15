@@ -7,6 +7,7 @@
 #include <QLabel>
 #include <memory>
 #include "secure_memory.h"
+#include "encryption_dialog.h"
 
 namespace Ui {
 class MainWindow;
@@ -57,6 +58,7 @@ private:
     //UI
     std::unique_ptr<ProgressDelegate> progress_delegate;
     std::unique_ptr<ProgressTableModel> progress_model;
+    EncryptionDialog encrypt_dialog;
     QLabel public_label;
     QLabel private_label;
 
@@ -103,6 +105,10 @@ public slots:
     //
     void encrypt_msg_clicked();
     void decrypt_msg_clicked();
+
+    //
+    void encrypt_msg(const QString &msg);
+    void decrypt_msg(const QString &cipher);
 
     //Get filename that being processed currently
     void current_file(const QString &filename, const qint64 filesize);
