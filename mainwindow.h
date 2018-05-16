@@ -19,6 +19,7 @@ class CryptThread;
 class MsgCryptor;
 class ProgressDelegate;
 class ProgressTableModel;
+class UserManager;
 
 class MainWindow : public QMainWindow
 {
@@ -50,6 +51,7 @@ private:
     std::shared_ptr<Decryptor> decryptor;
     std::unique_ptr<CryptThread> crypt_thread;
     std::unique_ptr<MsgCryptor> msg_cryptor;
+    std::unique_ptr<UserManager> user_manager;
     QTimer timer;
     QTime time_record;
     int count;
@@ -87,6 +89,9 @@ public slots:
 
     //
     void cipher_changed(const QString &cipher);
+
+    //
+    void update_digest(int index);
 
     //Reset password that used to encrypt private key
     void reset_password();

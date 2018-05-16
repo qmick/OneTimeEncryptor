@@ -39,7 +39,9 @@ SOURCES += \
     c_exception.cpp \
     crypto_io.cpp \
     msg_cryptor.cpp \
-    encryption_dialog.cpp
+    encryption_dialog.cpp \
+    user_manager.cpp \
+    SQLiteCPP/sqlite3.c
 
 HEADERS += \
         mainwindow.h \
@@ -56,7 +58,12 @@ HEADERS += \
     c_exception.h \
     crypto_io.h \
     msg_cryptor.h \
-    encryption_dialog.h
+    encryption_dialog.h \
+    user_manager.h \
+    SQLiteCPP/DB.h \
+    SQLiteCPP/Exception.h \
+    SQLiteCPP/sqlite3.h \
+    SQLiteCPP/Statement.h
 
 FORMS += \
         mainwindow.ui \

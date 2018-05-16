@@ -8,6 +8,7 @@
 #include "crypto_exception.h"
 #include "progress_delegate.h"
 #include "progress_tablemodel.h"
+#include "user_manager.h"
 
 #include <QFileDialog>
 #include <QInputDialog>
@@ -61,8 +62,9 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
     ui->tableView->setItemDelegate(progress_delegate.get());
     emit progress_model->layoutChanged();
 
-    public_path = "./public.pem";
-    private_path = "./private.pem";
+    user_manager = make_unique<UserManager>();
+    //public_path = "./public.pem";
+    //private_path = "./private.pem";
     auto_close = false;
 
     connect(&timer,                     SIGNAL(timeout()),   this, SLOT(update_time()));
@@ -82,8 +84,12 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
     connect(&encrypt_dialog, SIGNAL(encrypt(const QString &)), this, SLOT(encrypt_msg(const QString &)));
     connect(&encrypt_dialog, SIGNAL(decrypt(const QString &)), this, SLOT(decrypt_msg(const QString &)));
 
-
     ui->comboBox->addItems(kSupportedCipher);
+
+    QMap<QString, QString> user_digest = user_manager->get_user_digest();
+    for (auto i = user_digest.constBegin(); i != user_digest.constEnd(); ++i)
+        ui->user_comboBox->addItem(i.key(), i.value());
+    connect(ui->user_comboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(update_digest(int)));
 
     switch (mode)
     {
@@ -98,7 +104,7 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
             crypt_thread = std::make_unique<CryptThread>(encryptor, files);
             setup_progress(files);
             setup_thread();
-            auto_close = true;
+            auto_close = false;
         }
         break;
 
@@ -113,7 +119,7 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
             crypt_thread = std::make_unique<CryptThread>(decryptor, files);
             setup_progress(files);
             setup_thread();
-            auto_close = true;
+            auto_close = false;
         }
         break;
 
@@ -179,6 +185,7 @@ void MainWindow::setup_thread()
     //Initialize processed file(s) counter
     count = 0;
 
+    crypt_thread->cipher = current_cipher;
     crypt_thread->start();
 }
 
@@ -225,9 +232,16 @@ void MainWindow::generate_keypair(MainWindow::KeyType type)
     }
 }
 
+
 bool MainWindow::load_publickey_clicked()
 {
-    return load_publickey();
+    if (ui->user_comboBox->count() == 0)
+    {
+        QMessageBox::critical(this, tr("Error"), tr("No user available"),
+                              QMessageBox::Ok);
+        return false;
+    }
+    return load_publickey(ui->user_comboBox->currentText());
 }
 
 bool MainWindow::load_privatekey_clicked()
@@ -245,44 +259,46 @@ void MainWindow::cipher_changed(const QString &cipher)
     current_cipher = cipher;
 }
 
-bool MainWindow::load_publickey()
+void MainWindow::update_digest(int index)
 {
-    QFileInfo check_pubfile(public_path);
-    if (check_pubfile.exists() && check_pubfile.isFile())
+    QString digest = ui->user_comboBox->itemData(index).toString();
+    ui->digest_label->setText(digest);
+}
+
+bool MainWindow::load_publickey(const QString &username)
+{
+    try
     {
-        try
+        encryptor = std::make_shared<Encryptor>(public_path.toStdString());
+
+        //Get public key type
+        auto key = encryptor->get_key();
+        switch (EVP_PKEY_id(key.get()))
         {
-            encryptor = std::make_shared<Encryptor>(public_path.toStdString());
+        case EVP_PKEY_RSA:
+            public_label.setText(tr("RSA public key loaded"));
+            break;
 
-            //Get public key type
-            auto key = encryptor->get_key();
-            switch (EVP_PKEY_id(key.get()))
-            {
-            case EVP_PKEY_RSA:
-                public_label.setText(tr("RSA public key loaded"));
-                break;
+        case EVP_PKEY_EC:
+        case NID_X25519:
+            public_label.setText(tr("EC public key loaded"));
+            break;
 
-            case EVP_PKEY_EC:
-            case NID_X25519:
-                public_label.setText(tr("EC public key loaded"));
-                break;
-
-            default:
-                encryptor = nullptr;
-                QMessageBox::critical(this, "Error", tr("Unsupported Key type"), QMessageBox::Abort);
-                return false;
-            }
-            if (!msg_cryptor)
-                msg_cryptor = make_unique<MsgCryptor>();
-            msg_cryptor->set_pubkey(key);
-            return true;
+        default:
+            encryptor = nullptr;
+            QMessageBox::critical(this, "Error", tr("Unsupported Key type"), QMessageBox::Abort);
+            return false;
         }
-        catch (const std::exception &e)
-        {
-            QMessageBox::warning(this, "Warning",
-                                 tr("Cannot open public pem file: ") + e.what(),
-                                 QMessageBox::Abort);
-        }
+        if (!msg_cryptor)
+            msg_cryptor = make_unique<MsgCryptor>();
+        msg_cryptor->set_pubkey(key);
+        return true;
+    }
+    catch (const std::exception &e)
+    {
+        QMessageBox::warning(this, "Warning",
+                             tr("Cannot load public key: ") + e.what(),
+                             QMessageBox::Abort);
     }
 
     return false;
@@ -393,7 +409,6 @@ void MainWindow::encrypt_clicked()
     {
         auto files = dialog.selectedFiles();
         crypt_thread = std::make_unique<CryptThread>(encryptor, files);
-        crypt_thread->cipher = current_cipher;
         setup_progress(files);
         setup_thread();
     }
@@ -464,7 +479,8 @@ void MainWindow::decrypt_msg(const QString &cipher)
         QMessageBox::critical(this, "Error", e.what(), QMessageBox::Ok);
         return;
     }
-    encrypt_dialog.set_text(QString::fromLocal8Bit(reinterpret_cast<const char*>(out.data())));
+    QString text = QString::fromLocal8Bit(reinterpret_cast<const char*>(out.data()), out.size());
+    encrypt_dialog.set_text(text);
 }
 
 void MainWindow::current_file(const QString &filename, const qint64 filesize)

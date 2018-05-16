@@ -1,0 +1,3 @@
+[submodule "SQLiteCPP"]
+	path = SQLiteCPP
+	url = https://github.com/qmick/SQLiteCPP

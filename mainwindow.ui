@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>793</width>
-    <height>333</height>
+    <width>848</width>
+    <height>353</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,33 +15,6 @@
   </property>
   <widget class="QWidget" name="centralWidget">
    <layout class="QFormLayout" name="formLayout">
-    <item row="1" column="0" colspan="2">
-     <widget class="QTableView" name="tableView"/>
-    </item>
-    <item row="3" column="0">
-     <widget class="QComboBox" name="comboBox">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-     </widget>
-    </item>
-    <item row="4" column="0">
-     <widget class="QLabel" name="tip_label">
-      <property name="text">
-       <string>Only available in encryption</string>
-      </property>
-     </widget>
-    </item>
-    <item row="5" column="0">
-     <widget class="QLabel" name="cipher_label">
-      <property name="text">
-       <string>You should not change it unless you know what it means</string>
-      </property>
-     </widget>
-    </item>
     <item row="0" column="0" colspan="2">
      <widget class="QLabel" name="time_label">
       <property name="layoutDirection">
@@ -54,6 +27,9 @@
        <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
       </property>
      </widget>
+    </item>
+    <item row="1" column="0" colspan="2">
+     <widget class="QTableView" name="tableView"/>
     </item>
     <item row="2" column="0">
      <widget class="QPushButton" name="stop_button">
@@ -74,6 +50,33 @@
       </property>
      </widget>
     </item>
+    <item row="2" column="1">
+     <widget class="QComboBox" name="user_comboBox"/>
+    </item>
+    <item row="3" column="0">
+     <widget class="QComboBox" name="comboBox">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+     </widget>
+    </item>
+    <item row="3" column="1">
+     <widget class="QLabel" name="digest_label">
+      <property name="text">
+       <string>TextLabel</string>
+      </property>
+     </widget>
+    </item>
+    <item row="4" column="0">
+     <widget class="QLabel" name="tip_label">
+      <property name="text">
+       <string>Only available in encryption</string>
+      </property>
+     </widget>
+    </item>
    </layout>
   </widget>
   <widget class="QMenuBar" name="menuBar">
@@ -81,7 +84,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>793</width>
+     <width>848</width>
      <height>22</height>
     </rect>
    </property>
@@ -122,9 +125,17 @@
     <addaction name="action_encrypt_msg"/>
     <addaction name="action_decrypt_msg"/>
    </widget>
+   <widget class="QMenu" name="menu_User">
+    <property name="title">
+     <string>&amp;User</string>
+    </property>
+    <addaction name="action_Add"/>
+    <addaction name="action_Switch"/>
+   </widget>
    <addaction name="menu_File"/>
    <addaction name="menu_Message"/>
    <addaction name="menuKey"/>
+   <addaction name="menu_User"/>
    <addaction name="menu_About"/>
   </widget>
   <widget class="QToolBar" name="mainToolBar">
@@ -184,6 +195,16 @@
   <action name="action_decrypt_msg">
    <property name="text">
     <string>&amp;Decrypt</string>
+   </property>
+  </action>
+  <action name="action_Add">
+   <property name="text">
+    <string>&amp;Add</string>
+   </property>
+  </action>
+  <action name="action_Switch">
+   <property name="text">
+    <string>&amp;Switch</string>
    </property>
   </action>
  </widget>
