@@ -3,10 +3,12 @@
 
 #include "secure_memory.h"
 #include <string>
+#include <vector>
 
 class KeyGenerator
 {
 public:
+    static EVP_PKEY_ptr get_key_pair(const std::string &type);
     /**
      * @brief Generate private and public key
      * @return Key pair
@@ -21,8 +23,8 @@ public:
      * @param peerkey session public or master public key
      * @return secret
      */
-    static SecureBuffer get_secret(const EVP_PKEY_ptr pkey,
-                                   const EVP_PKEY_ptr peerkey);
+    static SecureBuffer get_secret(const EVP_PKEY_ptr &pkey,
+                                   const EVP_PKEY_ptr &peerkey);
 
     /**
      * @brief Save private to given path, encrypt it using given password
@@ -31,7 +33,7 @@ public:
      * @param password Password used to encrypt private key, using aes_256_cbc algorithm
      * @return
      */
-    static bool save_private_key(const std::string &private_path, const EVP_PKEY_ptr private_key,
+    static std::string get_private_key_pem(const EVP_PKEY_ptr &private_key,
                                  SecureBuffer &password);
 
     /**
@@ -40,7 +42,9 @@ public:
      * @param public_key OpenSSL structure that stored public key
      * @return
      */
-    static bool save_public_key(const std::string &public_path, const EVP_PKEY_ptr public_key);
+    static std::string get_pubkey_pem( const EVP_PKEY_ptr &public_key);
+
+    static std::vector<byte> get_digest(const std::string &content, const std::string &type);
 };
 
 #endif // KEY_GENERATOR_H

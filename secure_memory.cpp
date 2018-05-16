@@ -12,7 +12,10 @@ SecureBuffer::SecureBuffer()
 SecureBuffer::SecureBuffer(size_t n)
     : n(n)
 {
-    buffer = new byte[n];
+    if (n == 0)
+        buffer = nullptr;
+    else
+        buffer = new byte[n];
 }
 
 SecureBuffer::SecureBuffer(const byte *other, size_t n)

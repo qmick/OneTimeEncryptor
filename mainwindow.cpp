@@ -16,6 +16,7 @@
 #include <QFileInfo>
 #include <QTime>
 #include <QDebug>
+#include <QDialogButtonBox>
 
 
 using std::make_unique;
@@ -53,8 +54,8 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
     ui->setupUi(this);
     this->setWindowTitle(tr("OneTimeEncryptor"));
 
-    public_label.setText(tr("Public key not loaded"));
-    private_label.setText(tr("Private key not loaded"));
+    public_label.setText("");
+    private_label.setText(tr(""));
     ui->statusBar->addWidget(&public_label);
     ui->statusBar->addWidget(&private_label);
 
@@ -62,7 +63,7 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
     ui->tableView->setItemDelegate(progress_delegate.get());
     emit progress_model->layoutChanged();
 
-    user_manager = make_unique<UserManager>();
+    user_manager = make_unique<UserManager>("./user.db");
     //public_path = "./public.pem";
     //private_path = "./private.pem";
     auto_close = false;
@@ -83,13 +84,18 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
     connect(ui->action_decrypt_msg, SIGNAL(triggered()), this, SLOT(decrypt_msg_clicked()));
     connect(&encrypt_dialog, SIGNAL(encrypt(const QString &)), this, SLOT(encrypt_msg(const QString &)));
     connect(&encrypt_dialog, SIGNAL(decrypt(const QString &)), this, SLOT(decrypt_msg(const QString &)));
+    connect(ui->action_Add, SIGNAL(triggered()), this, SLOT(add_user()));
+    connect(ui->action_Switch, SIGNAL(triggered()), this, SLOT(switch_user()));
+    connect(ui->user_comboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(update_digest(int)));
 
     ui->comboBox->addItems(kSupportedCipher);
 
     QMap<QString, QString> user_digest = user_manager->get_user_digest();
+    if (user_digest.size() != 0)
+        user_manager->set_current_user(user_digest.begin().key());
     for (auto i = user_digest.constBegin(); i != user_digest.constEnd(); ++i)
         ui->user_comboBox->addItem(i.key(), i.value());
-    connect(ui->user_comboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(update_digest(int)));
+
 
     switch (mode)
     {
@@ -212,18 +218,16 @@ void MainWindow::generate_keypair(MainWindow::KeyType type)
                 break;
             }
 
-            KeyGenerator::save_private_key(private_path.toStdString(), key_pair, password);
-            KeyGenerator::save_public_key(public_path.toStdString(), key_pair);
+            QString pubkey = QString::fromStdString(KeyGenerator::get_pubkey_pem(key_pair));
+            QString private_key = QString::fromStdString(KeyGenerator::get_private_key_pem(key_pair, password));
 
-            load_publickey();
-            load_privatekey(password);
+            user_manager->set_key(pubkey, private_key);
+
+            load_publickey(pubkey);
+            load_privatekey(private_key, password);
         }
         catch (std::exception &e)
         {
-            //Remove generated files
-            remove(public_path.toStdString().c_str());
-            remove(private_path.toStdString().c_str());
-
             QMessageBox::critical(this, tr("Error"),
                                   tr("Cannot generate key: ") + e.what(),
                                   QMessageBox::Abort);
@@ -235,23 +239,99 @@ void MainWindow::generate_keypair(MainWindow::KeyType type)
 
 bool MainWindow::load_publickey_clicked()
 {
+    // No user
     if (ui->user_comboBox->count() == 0)
     {
         QMessageBox::critical(this, tr("Error"), tr("No user available"),
                               QMessageBox::Ok);
+        public_label.setText("");
         return false;
     }
-    return load_publickey(ui->user_comboBox->currentText());
+    return load_publickey(user_manager->get_pubkey());
 }
 
 bool MainWindow::load_privatekey_clicked()
 {
+    if (ui->user_comboBox->count() == 0)
+    {
+        QMessageBox::critical(this, tr("Error"), tr("No user available"),
+                              QMessageBox::Ok);
+        private_label.setText("");
+        return false;
+    }
+
     bool ok;
+
     QString text = QInputDialog::getText(this, tr("Input password"),
                                          tr("Password:"), QLineEdit::Password,
                                          QDir::home().dirName(), &ok);
+
     SecureBuffer password(text.toStdString());
-    return load_privatekey(password);
+    return load_privatekey(user_manager->get_private_key(), password);
+}
+
+void MainWindow::add_user()
+{
+    QDialog dialog(this);
+    // Use a layout allowing to have a label next to each field
+    QFormLayout form(&dialog);
+
+    // Add some text above the fields
+    form.addRow(new QLabel(tr("Please input:")));
+
+    // Add the lineEdits with their respective labels
+    QLineEdit username_edit(&dialog);
+    form.addRow(tr("Username:"), &username_edit);
+    QLineEdit password_edit(&dialog);
+    form.addRow(tr("Password:"), &password_edit);
+    QComboBox key_box(&dialog);
+    key_box.addItems({"ECC", "RSA"});
+    form.addRow(tr("Key type:"), &key_box);
+
+    // Add some standard buttons (Cancel/Ok) at the bottom of the dialog
+    QDialogButtonBox buttonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel,
+                               Qt::Horizontal, &dialog);
+    form.addRow(&buttonBox);
+    QObject::connect(&buttonBox, SIGNAL(accepted()), &dialog, SLOT(accept()));
+    QObject::connect(&buttonBox, SIGNAL(rejected()), &dialog, SLOT(reject()));
+
+    // Show the dialog as modal
+    if (dialog.exec() == QDialog::Accepted)
+    {
+        User user;
+        user.name = username_edit.text();
+        EVP_PKEY_ptr key_pair = KeyGenerator::get_key_pair(key_box.currentText().toStdString());
+        user.pubkey = QString::fromStdString(KeyGenerator::get_pubkey_pem(key_pair));
+        SecureBuffer password(password_edit.text().toStdString());
+        user.private_key = QString::fromStdString(KeyGenerator::get_private_key_pem(key_pair, password));
+        std::vector<byte> digest = KeyGenerator::get_digest(user.pubkey.toStdString(), "SHA256");
+        user.digest = QString::fromUtf8(QByteArray::fromRawData(reinterpret_cast<const char*>(digest.data()),
+                                                                digest.size()).toHex());
+        user_manager->add_user(user);
+        ui->user_comboBox->addItem(user.name, user.digest);
+        ui->user_comboBox->setCurrentText(user.name);
+        switch_user();
+    }
+}
+
+void MainWindow::switch_user()
+{
+    if (ui->user_comboBox->count() == 0)
+    {
+        QMessageBox::critical(this, tr("Error"), tr("No user available"),
+                              QMessageBox::Ok);
+        return;
+    }
+
+    user_manager->set_current_user(ui->user_comboBox->currentText());
+    if (!load_publickey_clicked())
+        return;
+    if (!load_privatekey_clicked())
+        return;
+    QMessageBox::information(this, tr("Information"),
+                             tr("Successfully switched to ") +
+                             user_manager->get_current_user(),
+                             QMessageBox::Ok);
 }
 
 void MainWindow::cipher_changed(const QString &cipher)
@@ -265,14 +345,14 @@ void MainWindow::update_digest(int index)
     ui->digest_label->setText(digest);
 }
 
-bool MainWindow::load_publickey(const QString &username)
+bool MainWindow::load_publickey(const QString &pubkey)
 {
     try
     {
-        encryptor = std::make_shared<Encryptor>(public_path.toStdString());
+        encryptor = std::make_shared<Encryptor>(pubkey.toStdString());
 
         //Get public key type
-        auto key = encryptor->get_key();
+        EVP_PKEY_ptr key = encryptor->get_key();
         switch (EVP_PKEY_id(key.get()))
         {
         case EVP_PKEY_RSA:
@@ -299,50 +379,54 @@ bool MainWindow::load_publickey(const QString &username)
         QMessageBox::warning(this, "Warning",
                              tr("Cannot load public key: ") + e.what(),
                              QMessageBox::Abort);
+        public_label.setText("");
     }
 
     return false;
 }
 
-bool MainWindow::load_privatekey(SecureBuffer &password)
+bool MainWindow::load_privatekey(const QString &private_key, SecureBuffer &password)
 {
-    QFileInfo check_prifile(private_path);
-    if (check_prifile.exists() && check_prifile.isFile())
+    if (password.size() == 0)
     {
-        try
+        private_label.setText("");
+        return false;
+    }
+
+    try
+    {
+        decryptor = std::make_shared<Decryptor>(private_key.toStdString(), password);
+
+        //Get private key type
+        EVP_PKEY_ptr key = decryptor->get_key();
+        switch (EVP_PKEY_id(key.get()))
         {
-            decryptor = std::make_shared<Decryptor>(private_path.toStdString(), password);
+        case EVP_PKEY_RSA:
+            private_label.setText(tr("RSA private key loaded"));
+            break;
 
-            //Get private key type
-            auto key = decryptor->get_key();
-            switch (EVP_PKEY_id(key.get()))
-            {
-            case EVP_PKEY_RSA:
-                private_label.setText(tr("RSA private key loaded"));
-                break;
+        case EVP_PKEY_EC:
+        case NID_X25519:
+            private_label.setText(tr("EC private key loaded"));
+            break;
 
-            case EVP_PKEY_EC:
-            case NID_X25519:
-                private_label.setText(tr("EC private key loaded"));
-                break;
-
-            default:
-                decryptor = nullptr;
-                QMessageBox::critical(this, "Error", tr("Unsupported Key type"), QMessageBox::Abort);
-                return false;
-            }
-            if (!msg_cryptor)
-                msg_cryptor = make_unique<MsgCryptor>();
-            msg_cryptor->set_private_key(key);
-
-            return true;
+        default:
+            decryptor = nullptr;
+            QMessageBox::critical(this, "Error", tr("Unsupported Key type"), QMessageBox::Abort);
+            return false;
         }
-        catch (const std::exception &e)
-        {
-            QMessageBox::warning(this, "Warning",
-                                 tr("cannot open private pem file: ") + e.what(),
-                                 QMessageBox::Abort);
-        }
+        if (!msg_cryptor)
+            msg_cryptor = make_unique<MsgCryptor>();
+        msg_cryptor->set_private_key(key);
+
+        return true;
+    }
+    catch (const std::exception &e)
+    {
+        QMessageBox::warning(this, "Warning",
+                             tr("cannot open private pem file: ") + e.what(),
+                             QMessageBox::Abort);
+        private_label.setText("");
     }
 
     return false;
@@ -363,11 +447,12 @@ void MainWindow::reset_password()
                                          tr("Password:"), QLineEdit::Password,
                                          QDir::home().dirName(), &ok);
     SecureBuffer password = SecureBuffer(text.toStdString());
-    auto private_key = decryptor->get_key();
+    EVP_PKEY_ptr private_key = decryptor->get_key();
 
     try
     {
-        KeyGenerator::save_private_key(private_path.toStdString(), private_key, password);
+        std::string pem = KeyGenerator::get_private_key_pem(private_key, password);
+        user_manager->set_private_key(QString::fromStdString(pem));
     }
     catch (const std::exception &e)
     {

@@ -8,12 +8,14 @@
 
 typedef unsigned char byte;
 using std::shared_ptr;
+using std::unique_ptr;
 
 //Smart pointers for openssl structure
 using EVP_CIPHER_CTX_ptr = shared_ptr<EVP_CIPHER_CTX>;
 using EVP_PKEY_ptr = shared_ptr<EVP_PKEY>;
 using EVP_PKEY_CTX_ptr = shared_ptr<EVP_PKEY_CTX>;
-
+using BIO_MEM_ptr = unique_ptr<BIO, decltype(&::BIO_free)>;
+using EVP_MD_CTX_ptr = unique_ptr<EVP_MD_CTX, decltype (&::EVP_MD_CTX_free)>;
 
 /**
  * @brief The SecureBuffer class is a buffer that used to place secret information

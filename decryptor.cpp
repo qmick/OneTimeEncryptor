@@ -16,13 +16,12 @@ using std::exception;
 using std::unique_ptr;
 using std::make_unique;
 
-Decryptor::Decryptor(const string &master_prikey_pem, SecureBuffer &password)
+Decryptor::Decryptor(const string &private_key_pem, SecureBuffer &password)
 {
-    //Open pem file that contains master private ec key
-    CryptoIO in(master_prikey_pem, "r");
+    BIO_MEM_ptr bio(BIO_new(BIO_s_mem()), ::BIO_free);
+    BIO_write(bio.get(), private_key_pem.data(), private_key_pem.size());
+    auto ret = PEM_read_bio_PrivateKey(bio.get(), NULL, NULL, password.get());
 
-    //Read master private key from file
-    auto ret = PEM_read_PrivateKey(in.get(), NULL, NULL, password.get());
     if (!ret)
         throw CryptoException();
 

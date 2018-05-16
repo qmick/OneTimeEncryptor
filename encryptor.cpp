@@ -9,6 +9,7 @@
 #include <openssl/err.h>
 #include <openssl/ec.h>
 #include <openssl/pem.h>
+#include <openssl/bio.h>
 #include <QDebug>
 
 
@@ -19,13 +20,13 @@ using std::function;
 using std::unique_ptr;
 using std::make_unique;
 
-Encryptor::Encryptor(const string &master_pubkey_pem)
+Encryptor::Encryptor(const string &pubkey_pem)
 {
-    //Open pem file that contains master private ec key
-    CryptoIO in(master_pubkey_pem, "r");
+    BIO_MEM_ptr bio(BIO_new(BIO_s_mem()), ::BIO_free);
+    BIO_write(bio.get(), pubkey_pem.c_str(), pubkey_pem.size());
 
-    //Read master private key from file
-    auto ret = PEM_read_PUBKEY(in.get(), NULL, NULL, NULL);
+    auto ret = PEM_read_bio_PUBKEY(bio.get(), NULL, 0, 0);
+
     if (!ret)
         throw CryptoException();
     key_type = EVP_PKEY_id(ret);

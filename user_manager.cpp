@@ -4,10 +4,6 @@
 #include <exception>
 #include <QStringList>
 
-UserManager::UserManager()
-{
-
-}
 
 UserManager::UserManager(const QString &db_path)
 {
@@ -54,7 +50,7 @@ QMap<QString, QString> UserManager::get_user_digest() const
     return user_digest;
 }
 
-User UserManager::get_user_by_name(const QString &username) const
+User UserManager::get_user(const QString &username) const
 {
     std::string sql = "SELECT * FROM user WHERE name=?";
     auto stmt = db->query(sql, username.toStdString());
@@ -73,6 +69,11 @@ User UserManager::get_user_by_name(const QString &username) const
         throw std::runtime_error("Not such user");
 }
 
+User UserManager::get_user() const
+{
+    return get_user(current_user);
+}
+
 QString UserManager::get_pubkey(const QString &username) const
 {
     std::string sql = "SELECT pubkey FROM user WHERE name=?";
@@ -81,6 +82,11 @@ QString UserManager::get_pubkey(const QString &username) const
         return QString::fromStdString(stmt.column_string(0));
     else
         throw std::runtime_error("Not such user");
+}
+
+QString UserManager::get_pubkey() const
+{
+    return get_pubkey(current_user);
 }
 
 QString UserManager::get_private_key(const QString &username) const
@@ -93,11 +99,31 @@ QString UserManager::get_private_key(const QString &username) const
         throw std::runtime_error("Not such user");
 }
 
+QString UserManager::get_private_key() const
+{
+    return get_private_key(current_user);
+}
+
 void UserManager::add_user(const User &user)
 {
     std::string sql = "INSERT INTO user(name,pubkey,private_key,digest) VALUES(?,?,?,?);";
     db->update(sql, user.name.toStdString(), user.pubkey.toStdString(),
                user.private_key.toStdString(), user.digest.toStdString());
+}
+
+bool UserManager::set_current_user(const QString &username)
+{
+    std::string sql = "SELECT * FROM user WHERE name=?";
+    auto stmt = db->query(sql, username.toStdString());
+    if (stmt.step() != sqlite::Statement::ROW)
+        return false;
+    current_user = username;
+    return true;
+}
+
+QString UserManager::get_current_user() const
+{
+    return current_user;
 }
 
 void UserManager::set_pubkey(const QString &username, const QString &pubkey)
@@ -106,16 +132,31 @@ void UserManager::set_pubkey(const QString &username, const QString &pubkey)
     db->update(sql, pubkey.toStdString(), username.toStdString());
 }
 
+void UserManager::set_pubkey(const QString &pubkey)
+{
+    set_pubkey(current_user, pubkey);
+}
+
 void UserManager::set_private_key(const QString &username, const QString &private_key)
 {
     std::string sql = "UPDATE user SET private_key=? WHERE name=?";
     db->update(sql, private_key.toStdString(), username.toStdString());
 }
 
+void UserManager::set_private_key(const QString &private_key)
+{
+    set_private_key(current_user, private_key);
+}
+
 void UserManager::set_key(const QString &username, const QString &pubkey, const QString &private_key)
 {
     std::string sql = "UPDATE user SET pubkey=?,private_key=? WHERE name=?";
     db->update(sql, pubkey.toStdString(), private_key.toStdString(), username.toStdString());
+}
+
+void UserManager::set_key(const QString &pubkey, const QString &private_key)
+{
+    set_key(current_user, pubkey, private_key);
 }
 
 int UserManager::get_key_type(const QString &username) const
@@ -128,4 +169,9 @@ int UserManager::get_key_type(const QString &username) const
     }
     else
         throw std::runtime_error("No such user");
+}
+
+int UserManager::get_key_type() const
+{
+    return get_key_type(current_user);
 }

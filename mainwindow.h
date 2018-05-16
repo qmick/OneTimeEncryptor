@@ -72,8 +72,8 @@ private:
 
     void setup_progress(const QStringList &files);
 
-    bool load_publickey();
-    bool load_privatekey(SecureBuffer &password);
+    bool load_publickey(const QString &pubkey);
+    bool load_privatekey(const QString &private_key, SecureBuffer &password);
 
     /**
      * @brief setup_thread Setup working thread for encryption or decryption
@@ -86,6 +86,9 @@ public slots:
     //load public and private key from pem file
     bool load_publickey_clicked();
     bool load_privatekey_clicked();
+
+    void add_user();
+    void switch_user();
 
     //
     void cipher_changed(const QString &cipher);

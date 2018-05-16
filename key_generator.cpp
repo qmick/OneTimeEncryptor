@@ -5,12 +5,24 @@
 #include <openssl/err.h>
 #include <openssl/ec.h>
 #include <openssl/pem.h>
+#include <openssl/bio.h>
 #include <cerrno>
 #include <QDebug>
 
 
 using std::runtime_error;
 using std::string;
+using std::vector;
+
+EVP_PKEY_ptr KeyGenerator::get_key_pair(const string &type)
+{
+    if (type == "ECC")
+        return get_key_pair();
+    else if (type == "RSA")
+        return get_rsa_key_pair();
+    else
+        throw runtime_error("Unsupported key type");
+}
 
 EVP_PKEY_ptr KeyGenerator::get_key_pair()
 {
@@ -51,8 +63,8 @@ EVP_PKEY_ptr KeyGenerator::get_rsa_key_pair()
     return EVP_PKEY_ptr(tmp, ::EVP_PKEY_free);
 }
 
-SecureBuffer KeyGenerator::get_secret(const EVP_PKEY_ptr pkey,
-                                      const EVP_PKEY_ptr peerkey)
+SecureBuffer KeyGenerator::get_secret(const EVP_PKEY_ptr &pkey,
+                                      const EVP_PKEY_ptr &peerkey)
 {
     EVP_PKEY_CTX_ptr ctx;
     SecureBuffer secret;
@@ -84,40 +96,47 @@ SecureBuffer KeyGenerator::get_secret(const EVP_PKEY_ptr pkey,
     return secret;
 }
 
-bool KeyGenerator::save_private_key(const string &private_path, const EVP_PKEY_ptr private_key,
+string KeyGenerator::get_private_key_pem(const EVP_PKEY_ptr &private_key,
                                     SecureBuffer &password)
 {
-    FILE *private_fp = NULL;
+    BIO_MEM_ptr bio(BIO_new(BIO_s_mem()), ::BIO_free);
 
-    //Open file for writing pem private key
-    private_fp = fopen(private_path.c_str(), "w");
-    if (!private_fp)
-        throw CException();
-
-    if (!PEM_write_PrivateKey(private_fp, private_key.get(), EVP_aes_256_cbc(), password.get(),
+    if (!PEM_write_bio_PrivateKey(bio.get(), private_key.get(), EVP_aes_256_cbc(), password.get(),
                               static_cast<int>(password.size()), NULL, NULL))
-    {
-        fclose(private_fp);
         throw CryptoException();
-    }
-    fclose(private_fp);
-    return true;
+    BUF_MEM *mem = NULL;
+    BIO_get_mem_ptr(bio.get(), &mem);
+    if (!mem || !mem->data || !mem->length)
+        throw CryptoException();
+    return string(mem->data, mem->length);
 }
 
-bool KeyGenerator::save_public_key(const string &public_path, const EVP_PKEY_ptr public_key)
+string KeyGenerator::get_pubkey_pem(const EVP_PKEY_ptr &public_key)
 {
-    FILE *public_fp = NULL;
+    BIO_MEM_ptr bio(BIO_new(BIO_s_mem()), ::BIO_free);
 
-    //Open file for writing pem public key
-    public_fp = fopen(public_path.c_str(), "w");
-    if (!public_fp)
-        throw CException();
 
-    if (!PEM_write_PUBKEY(public_fp, public_key.get()))
-    {
-        fclose(public_fp);
+    if (!PEM_write_bio_PUBKEY(bio.get(), public_key.get()))
         throw CryptoException();
-    }
-    fclose(public_fp);
-    return true;
+
+    BUF_MEM *mem = NULL;
+    BIO_get_mem_ptr(bio.get(), &mem);
+    if (!mem || !mem->data || !mem->length)
+        throw CryptoException();
+    return string(mem->data, mem->length);
+}
+
+vector<byte> KeyGenerator::get_digest(const std::string &content, const std::string &type)
+{
+    EVP_MD_CTX_ptr mdctx(EVP_MD_CTX_new(), ::EVP_MD_CTX_free);
+    const EVP_MD *md = EVP_get_digestbyname(type.c_str());
+    if (!md)
+        throw runtime_error("No such digest algorithm");
+    EVP_DigestInit_ex(mdctx.get(), md, NULL);
+    EVP_DigestUpdate(mdctx.get(), content.c_str(), content.size());
+    size_t md_len;
+    vector<byte> md_value(EVP_MAX_MD_SIZE);
+    EVP_DigestFinal_ex(mdctx.get(), &md_value[0], &md_len);
+    md_value.resize(md_len);
+    return md_value;
 }

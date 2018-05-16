@@ -11,7 +11,7 @@ public:
      * @brief Encryptor construct
      * @param master_pubkey_pem Path to PEM file that contains master private key
      */
-    explicit Encryptor(const std::string &master_pubkey_pem);
+    explicit Encryptor(const std::string &pubkey_pem);
 
     ~Encryptor() override;
 
