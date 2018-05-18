@@ -4,6 +4,7 @@
 #include <exception>
 #include <QStringList>
 
+using std::runtime_error;
 
 UserManager::UserManager(const QString &db_path)
 {
@@ -71,6 +72,8 @@ User UserManager::get_user(const QString &username) const
 
 User UserManager::get_user() const
 {
+    if (current_user.isEmpty())
+        throw runtime_error("No user available");
     return get_user(current_user);
 }
 
@@ -86,6 +89,8 @@ QString UserManager::get_pubkey(const QString &username) const
 
 QString UserManager::get_pubkey() const
 {
+    if (current_user.isEmpty())
+        throw runtime_error("No user available");
     return get_pubkey(current_user);
 }
 
@@ -101,6 +106,8 @@ QString UserManager::get_private_key(const QString &username) const
 
 QString UserManager::get_private_key() const
 {
+    if (current_user.isEmpty())
+        throw runtime_error("No user available");
     return get_private_key(current_user);
 }
 
@@ -109,6 +116,12 @@ void UserManager::add_user(const User &user)
     std::string sql = "INSERT INTO user(name,pubkey,private_key,digest) VALUES(?,?,?,?);";
     db->update(sql, user.name.toStdString(), user.pubkey.toStdString(),
                user.private_key.toStdString(), user.digest.toStdString());
+}
+
+void UserManager::delete_user(const QString &username)
+{
+    std::string sql = "DELETE FROM user WHERE username=?";
+    db->update(sql, username.toStdString());
 }
 
 bool UserManager::set_current_user(const QString &username)
@@ -134,6 +147,8 @@ void UserManager::set_pubkey(const QString &username, const QString &pubkey)
 
 void UserManager::set_pubkey(const QString &pubkey)
 {
+    if (current_user.isEmpty())
+        throw runtime_error("No user available");
     set_pubkey(current_user, pubkey);
 }
 
@@ -145,6 +160,8 @@ void UserManager::set_private_key(const QString &username, const QString &privat
 
 void UserManager::set_private_key(const QString &private_key)
 {
+    if (current_user.isEmpty())
+        throw runtime_error("No user available");
     set_private_key(current_user, private_key);
 }
 
@@ -156,6 +173,8 @@ void UserManager::set_key(const QString &username, const QString &pubkey, const 
 
 void UserManager::set_key(const QString &pubkey, const QString &private_key)
 {
+    if (current_user.isEmpty())
+        throw runtime_error("No user available");
     set_key(current_user, pubkey, private_key);
 }
 
@@ -164,14 +183,14 @@ int UserManager::get_key_type(const QString &username) const
     std::string sql = "SELECT key_type FROM user WHERE name=?";
     auto stmt = db->query(sql, username.toStdString());
     if (stmt.step() == sqlite::Statement::ROW)
-    {
         return stmt.column_int(0);
-    }
     else
         throw std::runtime_error("No such user");
 }
 
 int UserManager::get_key_type() const
 {
+    if (current_user.isEmpty())
+        throw runtime_error("No user available");
     return get_key_type(current_user);
 }

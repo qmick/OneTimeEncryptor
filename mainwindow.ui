@@ -66,7 +66,7 @@
     <item row="3" column="1">
      <widget class="QLabel" name="digest_label">
       <property name="text">
-       <string>TextLabel</string>
+       <string>Public key digest</string>
       </property>
      </widget>
     </item>
@@ -131,6 +131,7 @@
     </property>
     <addaction name="action_Add"/>
     <addaction name="action_Switch"/>
+    <addaction name="action_Delete"/>
    </widget>
    <addaction name="menu_File"/>
    <addaction name="menu_Message"/>
@@ -205,6 +206,11 @@
   <action name="action_Switch">
    <property name="text">
     <string>&amp;Switch</string>
+   </property>
+  </action>
+  <action name="action_Delete">
+   <property name="text">
+    <string>&amp;Delete</string>
    </property>
   </action>
  </widget>

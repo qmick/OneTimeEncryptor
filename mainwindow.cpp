@@ -4,7 +4,7 @@
 #include "msg_cryptor.h"
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-#include "key_generator.h"
+#include "key_tool.h"
 #include "crypto_exception.h"
 #include "progress_delegate.h"
 #include "progress_tablemodel.h"
@@ -86,6 +86,7 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
     connect(&encrypt_dialog, SIGNAL(decrypt(const QString &)), this, SLOT(decrypt_msg(const QString &)));
     connect(ui->action_Add, SIGNAL(triggered()), this, SLOT(add_user()));
     connect(ui->action_Switch, SIGNAL(triggered()), this, SLOT(switch_user()));
+    connect(ui->action_Delete, SIGNAL(triggered()), this, SLOT(delete_user()));
     connect(ui->user_comboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(update_digest(int)));
 
     ui->comboBox->addItems(kSupportedCipher);
@@ -131,8 +132,8 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
 
     //Open for both
     case ALL:
-        load_publickey_clicked();
-        load_privatekey_clicked();
+        if (load_publickey_clicked())
+            load_privatekey_clicked();
         break;
     }
 }
@@ -182,6 +183,8 @@ void MainWindow::setup_thread()
     ui->action_Encrypt->setDisabled(true);
     ui->actionECC->setDisabled(true);
     ui->actionRSA->setDisabled(true);
+    ui->action_Add->setDisabled(true);
+    ui->action_Switch->setDisabled(true);
 
     //Setup timer
     timer.start(1000);
@@ -211,15 +214,15 @@ void MainWindow::generate_keypair(MainWindow::KeyType type)
             switch (type)
             {
             case ECC:
-                key_pair = KeyGenerator::get_key_pair();
+                key_pair = KeyTool::get_key_pair();
                 break;
             case RSA:
-                key_pair = KeyGenerator::get_rsa_key_pair();
+                key_pair = KeyTool::get_rsa_key_pair();
                 break;
             }
 
-            QString pubkey = QString::fromStdString(KeyGenerator::get_pubkey_pem(key_pair));
-            QString private_key = QString::fromStdString(KeyGenerator::get_private_key_pem(key_pair, password));
+            QString pubkey = QString::fromStdString(KeyTool::get_pubkey_pem(key_pair));
+            QString private_key = QString::fromStdString(KeyTool::get_private_key_pem(key_pair, password));
 
             user_manager->set_key(pubkey, private_key);
 
@@ -283,6 +286,7 @@ void MainWindow::add_user()
     QLineEdit username_edit(&dialog);
     form.addRow(tr("Username:"), &username_edit);
     QLineEdit password_edit(&dialog);
+    password_edit.setEchoMode(QLineEdit::Password);
     form.addRow(tr("Password:"), &password_edit);
     QComboBox key_box(&dialog);
     key_box.addItems({"ECC", "RSA"});
@@ -300,11 +304,11 @@ void MainWindow::add_user()
     {
         User user;
         user.name = username_edit.text();
-        EVP_PKEY_ptr key_pair = KeyGenerator::get_key_pair(key_box.currentText().toStdString());
-        user.pubkey = QString::fromStdString(KeyGenerator::get_pubkey_pem(key_pair));
+        EVP_PKEY_ptr key_pair = KeyTool::get_key_pair(key_box.currentText().toStdString());
+        user.pubkey = QString::fromStdString(KeyTool::get_pubkey_pem(key_pair));
         SecureBuffer password(password_edit.text().toStdString());
-        user.private_key = QString::fromStdString(KeyGenerator::get_private_key_pem(key_pair, password));
-        std::vector<byte> digest = KeyGenerator::get_digest(user.pubkey.toStdString(), "SHA256");
+        user.private_key = QString::fromStdString(KeyTool::get_private_key_pem(key_pair, password));
+        std::vector<byte> digest = KeyTool::get_digest(user.pubkey.toStdString(), "SHA256");
         user.digest = QString::fromUtf8(QByteArray::fromRawData(reinterpret_cast<const char*>(digest.data()),
                                                                 digest.size()).toHex());
         user_manager->add_user(user);
@@ -334,6 +338,15 @@ void MainWindow::switch_user()
                              QMessageBox::Ok);
 }
 
+void MainWindow::delete_user()
+{
+    QString username = user_manager->get_current_user();
+    if (username.isEmpty())
+        return;
+    user_manager->get_private_key();
+
+}
+
 void MainWindow::cipher_changed(const QString &cipher)
 {
     current_cipher = cipher;
@@ -342,7 +355,7 @@ void MainWindow::cipher_changed(const QString &cipher)
 void MainWindow::update_digest(int index)
 {
     QString digest = ui->user_comboBox->itemData(index).toString();
-    ui->digest_label->setText(digest);
+    ui->digest_label->setText(digest.toUpper());
 }
 
 bool MainWindow::load_publickey(const QString &pubkey)
@@ -451,7 +464,7 @@ void MainWindow::reset_password()
 
     try
     {
-        std::string pem = KeyGenerator::get_private_key_pem(private_key, password);
+        std::string pem = KeyTool::get_private_key_pem(private_key, password);
         user_manager->set_private_key(QString::fromStdString(pem));
     }
     catch (const std::exception &e)
@@ -626,6 +639,8 @@ void MainWindow::job_finished()
     ui->action_Encrypt->setDisabled(false);
     ui->actionECC->setDisabled(false);
     ui->actionRSA->setDisabled(false);
+    ui->action_Add->setDisabled(false);
+    ui->action_Switch->setDisabled(false);
 }
 
 void MainWindow::stop_job()

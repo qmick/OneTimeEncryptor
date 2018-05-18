@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-class KeyGenerator
+class KeyTool
 {
 public:
     static EVP_PKEY_ptr get_key_pair(const std::string &type);
@@ -42,7 +42,11 @@ public:
      * @param public_key OpenSSL structure that stored public key
      * @return
      */
-    static std::string get_pubkey_pem( const EVP_PKEY_ptr &public_key);
+    static std::string get_pubkey_pem(const EVP_PKEY_ptr &public_key);
+
+    static EVP_PKEY_ptr get_pubkey(const std::string &pem);
+
+    static EVP_PKEY_ptr get_private_key(const std::string &pem, const SecureBuffer &password);
 
     static std::vector<byte> get_digest(const std::string &content, const std::string &type);
 };

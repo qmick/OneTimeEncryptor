@@ -1,6 +1,6 @@
 #include "encryptor.h"
 #include "symmetric_cryptor.h"
-#include "key_generator.h"
+#include "key_tool.h"
 #include "crypto_exception.h"
 #include "c_exception.h"
 #include <openssl/conf.h>
@@ -22,15 +22,8 @@ using std::make_unique;
 
 Encryptor::Encryptor(const string &pubkey_pem)
 {
-    BIO_MEM_ptr bio(BIO_new(BIO_s_mem()), ::BIO_free);
-    BIO_write(bio.get(), pubkey_pem.c_str(), pubkey_pem.size());
-
-    auto ret = PEM_read_bio_PUBKEY(bio.get(), NULL, 0, 0);
-
-    if (!ret)
-        throw CryptoException();
-    key_type = EVP_PKEY_id(ret);
-    master_key = EVP_PKEY_ptr(ret, ::EVP_PKEY_free);
+    master_key = KeyTool::get_pubkey(pubkey_pem);
+    key_type = EVP_PKEY_id(master_key.get());
 }
 
 Encryptor::~Encryptor()
@@ -82,8 +75,8 @@ int64_t Encryptor::crypt_file(const string &filename,
     else if (key_type == EVP_PKEY_EC || key_type == NID_X25519)
     {
         //ECDH
-        auto key_pair = KeyGenerator::get_key_pair();
-        auto secret = KeyGenerator::get_secret(key_pair, master_key);
+        auto key_pair = KeyTool::get_key_pair();
+        auto secret = KeyTool::get_secret(key_pair, master_key);
         cryptor = make_unique<SymmetricCryptor>(secret, cipher);
 
         //Write session publick key to file header

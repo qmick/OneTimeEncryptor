@@ -26,7 +26,6 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
         main.cpp \
         mainwindow.cpp \
-    key_generator.cpp \
     decryptor.cpp \
     encryptor.cpp \
     crypto_exception.cpp \
@@ -41,11 +40,11 @@ SOURCES += \
     msg_cryptor.cpp \
     encryption_dialog.cpp \
     user_manager.cpp \
-    SQLiteCPP/sqlite3.c
+    SQLiteCPP/sqlite3.c \
+    key_tool.cpp
 
 HEADERS += \
         mainwindow.h \
-    key_generator.h \
     decryptor.h \
     encryptor.h \
     secure_memory.h \
@@ -63,7 +62,8 @@ HEADERS += \
     SQLiteCPP/DB.h \
     SQLiteCPP/Exception.h \
     SQLiteCPP/sqlite3.h \
-    SQLiteCPP/Statement.h
+    SQLiteCPP/Statement.h \
+    key_tool.h
 
 FORMS += \
         mainwindow.ui \

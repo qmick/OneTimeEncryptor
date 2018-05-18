@@ -89,6 +89,7 @@ public slots:
 
     void add_user();
     void switch_user();
+    void delete_user();
 
     //
     void cipher_changed(const QString &cipher);

@@ -1,4 +1,4 @@
-#include "key_generator.h"
+#include "key_tool.h"
 #include "crypto_exception.h"
 #include "c_exception.h"
 #include <openssl/evp.h>
@@ -14,7 +14,7 @@ using std::runtime_error;
 using std::string;
 using std::vector;
 
-EVP_PKEY_ptr KeyGenerator::get_key_pair(const string &type)
+EVP_PKEY_ptr KeyTool::get_key_pair(const string &type)
 {
     if (type == "ECC")
         return get_key_pair();
@@ -24,7 +24,7 @@ EVP_PKEY_ptr KeyGenerator::get_key_pair(const string &type)
         throw runtime_error("Unsupported key type");
 }
 
-EVP_PKEY_ptr KeyGenerator::get_key_pair()
+EVP_PKEY_ptr KeyTool::get_key_pair()
 {
     EVP_PKEY_CTX_ptr pctx;
 
@@ -42,7 +42,7 @@ EVP_PKEY_ptr KeyGenerator::get_key_pair()
     return EVP_PKEY_ptr(tmp, ::EVP_PKEY_free);
 }
 
-EVP_PKEY_ptr KeyGenerator::get_rsa_key_pair()
+EVP_PKEY_ptr KeyTool::get_rsa_key_pair()
 {
     EVP_PKEY_CTX_ptr ctx;
     EVP_PKEY_ptr pkey;
@@ -63,7 +63,7 @@ EVP_PKEY_ptr KeyGenerator::get_rsa_key_pair()
     return EVP_PKEY_ptr(tmp, ::EVP_PKEY_free);
 }
 
-SecureBuffer KeyGenerator::get_secret(const EVP_PKEY_ptr &pkey,
+SecureBuffer KeyTool::get_secret(const EVP_PKEY_ptr &pkey,
                                       const EVP_PKEY_ptr &peerkey)
 {
     EVP_PKEY_CTX_ptr ctx;
@@ -96,7 +96,7 @@ SecureBuffer KeyGenerator::get_secret(const EVP_PKEY_ptr &pkey,
     return secret;
 }
 
-string KeyGenerator::get_private_key_pem(const EVP_PKEY_ptr &private_key,
+string KeyTool::get_private_key_pem(const EVP_PKEY_ptr &private_key,
                                     SecureBuffer &password)
 {
     BIO_MEM_ptr bio(BIO_new(BIO_s_mem()), ::BIO_free);
@@ -111,7 +111,7 @@ string KeyGenerator::get_private_key_pem(const EVP_PKEY_ptr &private_key,
     return string(mem->data, mem->length);
 }
 
-string KeyGenerator::get_pubkey_pem(const EVP_PKEY_ptr &public_key)
+string KeyTool::get_pubkey_pem(const EVP_PKEY_ptr &public_key)
 {
     BIO_MEM_ptr bio(BIO_new(BIO_s_mem()), ::BIO_free);
 
@@ -126,7 +126,31 @@ string KeyGenerator::get_pubkey_pem(const EVP_PKEY_ptr &public_key)
     return string(mem->data, mem->length);
 }
 
-vector<byte> KeyGenerator::get_digest(const std::string &content, const std::string &type)
+EVP_PKEY_ptr KeyTool::get_pubkey(const std::string &pem)
+{
+    BIO_MEM_ptr bio(BIO_new(BIO_s_mem()), ::BIO_free);
+    BIO_write(bio.get(), pubkey_pem.c_str(), pubkey_pem.size());
+
+    auto ret = PEM_read_bio_PUBKEY(bio.get(), NULL, 0, 0);
+
+    if (!ret)
+        throw CryptoException();
+    return EVP_PKEY_ptr(ret, ::EVP_PKEY_free);
+}
+
+EVP_PKEY_ptr KeyTool::get_private_key(const std::string &pem, const SecureBuffer &password)
+{
+    BIO_MEM_ptr bio(BIO_new(BIO_s_mem()), ::BIO_free);
+    BIO_write(bio.get(), pem.data(), pem.size());
+    EVP_PKEY *ret = PEM_read_bio_PrivateKey(bio.get(), NULL, NULL, password.get());
+
+    if (!ret)
+        throw CryptoException();
+
+    retur EVP_PKEY_ptr(ret, ::EVP_PKEY_free);;
+}
+
+vector<byte> KeyTool::get_digest(const std::string &content, const std::string &type)
 {
     EVP_MD_CTX_ptr mdctx(EVP_MD_CTX_new(), ::EVP_MD_CTX_free);
     const EVP_MD *md = EVP_get_digestbyname(type.c_str());
@@ -134,7 +158,7 @@ vector<byte> KeyGenerator::get_digest(const std::string &content, const std::str
         throw runtime_error("No such digest algorithm");
     EVP_DigestInit_ex(mdctx.get(), md, NULL);
     EVP_DigestUpdate(mdctx.get(), content.c_str(), content.size());
-    size_t md_len;
+    unsigned int md_len;
     vector<byte> md_value(EVP_MAX_MD_SIZE);
     EVP_DigestFinal_ex(mdctx.get(), &md_value[0], &md_len);
     md_value.resize(md_len);

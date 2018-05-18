@@ -43,6 +43,7 @@ public:
     int get_key_type(const QString &username) const;
     int get_key_type() const;
     void add_user(const User &user);
+    void delete_user(const QString &username);
 
     bool set_current_user(const QString &username);
     QString get_current_user() const;

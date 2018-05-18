@@ -1,7 +1,7 @@
 #include "decryptor.h"
 #include "crypto_exception.h"
 #include "crypto_io.h"
-#include "key_generator.h"
+#include "key_tool.h"
 #include "symmetric_cryptor.h"
 #include "c_exception.h"
 #include <openssl/evp.h>
@@ -18,15 +18,8 @@ using std::make_unique;
 
 Decryptor::Decryptor(const string &private_key_pem, SecureBuffer &password)
 {
-    BIO_MEM_ptr bio(BIO_new(BIO_s_mem()), ::BIO_free);
-    BIO_write(bio.get(), private_key_pem.data(), private_key_pem.size());
-    auto ret = PEM_read_bio_PrivateKey(bio.get(), NULL, NULL, password.get());
-
-    if (!ret)
-        throw CryptoException();
-
-    key_type = EVP_PKEY_id(ret);
-    master_key = EVP_PKEY_ptr(ret, ::EVP_PKEY_free);
+    master_key = KeyTool::get_private_key(private_key_pem, password);
+    key_type = EVP_PKEY_id(master_key.get());
 }
 
 Decryptor::~Decryptor()
@@ -96,7 +89,7 @@ int64_t Decryptor::crypt_file(const string &filename,
         pub_key = EVP_PKEY_ptr(ret, ::EVP_PKEY_free);
 
         //ECDH
-        secret = KeyGenerator::get_secret(master_key, pub_key);
+        secret = KeyTool::get_secret(master_key, pub_key);
 
         //Initialize decryptor
         cryptor = make_unique<SymmetricCryptor>(secret, cipher);
