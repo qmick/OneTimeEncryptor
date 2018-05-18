@@ -15,9 +15,9 @@
 
 ```OneTimeEncryptor [enc|dec] file1 file2 file3...```
 
-`enc` 参数是指以加密模式打开程序，在该模式下只会加载公钥，自动加密file1 file2 file3...，然后自动退出。
+`enc` 参数是指以加密模式打开程序，在该模式下只会加载公钥，自动加密file1 file2 file3...
 
-`dec` 参数是指以解密模式打开程序，在该模式下只会加载私钥，自动解密file1 file2 file3...，然后自动退出。
+`dec` 参数是指以解密模式打开程序，在该模式下只会加载私钥，自动解密file1 file2 file3...
 
 
 ## 编译
@@ -53,9 +53,9 @@ You can encrypt any file without entering password using public key. But once wa
 
 ```OneTimeEncryptor [enc|dec] file1 file2 file3...```
 
-`enc` means start application for "encryption", load public key only, automatically encrypt file1, file2, file3... then exit.
+`enc` means start application for "encryption", load public key only, automatically encrypt file1, file2, file3...
 
-`dec` means start application for "decryption", load private key only, automatically decrypt file1, file2, file3... then exit.
+`dec` means start application for "decryption", load private key only, automatically decrypt file1, file2, file3...
 
 
 
