@@ -120,12 +120,17 @@ void UserManager::add_user(const User &user)
 
 void UserManager::delete_user(const QString &username)
 {
-    std::string sql = "DELETE FROM user WHERE username=?";
+    std::string sql = "DELETE FROM user WHERE name=?";
     db->update(sql, username.toStdString());
 }
 
 bool UserManager::set_current_user(const QString &username)
 {
+    if (username.isEmpty())
+    {
+        current_user = username;
+        return true;
+    }
     std::string sql = "SELECT * FROM user WHERE name=?";
     auto stmt = db->query(sql, username.toStdString());
     if (stmt.step() != sqlite::Statement::ROW)

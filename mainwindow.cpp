@@ -112,7 +112,7 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
             crypt_thread = std::make_unique<CryptThread>(encryptor, files);
             setup_progress(files);
             setup_thread();
-            auto_close = false;
+            auto_close = true;
         }
         break;
 
@@ -127,7 +127,7 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
             crypt_thread = std::make_unique<CryptThread>(decryptor, files);
             setup_progress(files);
             setup_thread();
-            auto_close = false;
+            auto_close = true;
         }
         break;
 
@@ -344,8 +344,23 @@ void MainWindow::delete_user()
     QString username = user_manager->get_current_user();
     if (username.isEmpty())
         return;
-    user_manager->get_private_key();
-
+    bool ok;
+    QString text = QInputDialog::getText(this, tr("Input password"),
+                                         tr("Password:"), QLineEdit::Password,
+                                         QDir::home().dirName(), &ok);
+    SecureBuffer password = SecureBuffer(text.toStdString());
+    try
+    {
+        QString pem = user_manager->get_private_key();
+        KeyTool::get_private_key(pem.toStdString(), password);
+        user_manager->delete_user(user_manager->get_current_user());
+    }
+    catch (std::exception e)
+    {
+        QMessageBox::critical(this, tr("Error"), tr("Uable to delete user: ") +
+                              tr(e.what()), QMessageBox::Abort);
+        return;
+    }
 }
 
 void MainWindow::cipher_changed(const QString &cipher)

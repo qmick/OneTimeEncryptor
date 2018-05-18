@@ -2,6 +2,7 @@
 #include "crypto_exception.h"
 #include <exception>
 #include <openssl/evp.h>
+#include <cstring>
 
 MsgCryptor::MsgCryptor()
 {
