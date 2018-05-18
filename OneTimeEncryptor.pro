@@ -78,6 +78,6 @@ win32:{
 
 unix:{
     LIBS += -L/usr/local/lib
-    LIBS += -lcrypto -lssl
+    LIBS += -lcrypto -lssl -ldl
     QMAKE_CXXFLAGS += -std=c++1y
 }
