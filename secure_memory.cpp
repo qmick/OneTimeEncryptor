@@ -33,11 +33,12 @@ SecureBuffer::SecureBuffer(const string &str)
     buffer[n - 1] = '\0';
 }
 
-SecureBuffer::SecureBuffer(SecureBuffer &&other) noexcept
+SecureBuffer::SecureBuffer(const SecureBuffer &other)
     : n(other.n), buffer(other.buffer)
 {
-    other.n = 0;
-    other.buffer = nullptr;
+    n = other.n;
+    buffer = new byte[n];
+    memmove(buffer, other.buffer, n);
 }
 
 SecureBuffer::~SecureBuffer()
@@ -46,13 +47,11 @@ SecureBuffer::~SecureBuffer()
     delete []buffer;
 }
 
-SecureBuffer &SecureBuffer::operator=(SecureBuffer &&other) noexcept
+SecureBuffer &SecureBuffer::operator=(const SecureBuffer &other)
 {
     n = other.n;
-    buffer = other.buffer;
-    other.n = 0;
-    other.buffer = nullptr;
-
+    buffer = new byte[n];
+    memmove(buffer, other.buffer, n);
     return *this;
 }
 

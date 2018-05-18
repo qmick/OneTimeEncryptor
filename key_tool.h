@@ -34,7 +34,7 @@ public:
      * @return
      */
     static std::string get_private_key_pem(const EVP_PKEY_ptr &private_key,
-                                 SecureBuffer &password);
+                                 SecureBuffer password);
 
     /**
      * @brief Save public to given path
@@ -46,7 +46,7 @@ public:
 
     static EVP_PKEY_ptr get_pubkey(const std::string &pem);
 
-    static EVP_PKEY_ptr get_private_key(const std::string &pem, const SecureBuffer &password);
+    static EVP_PKEY_ptr get_private_key(const std::string &pem, SecureBuffer password);
 
     static std::vector<byte> get_digest(const std::string &content, const std::string &type);
 };

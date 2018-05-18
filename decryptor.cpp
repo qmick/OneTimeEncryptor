@@ -16,7 +16,7 @@ using std::exception;
 using std::unique_ptr;
 using std::make_unique;
 
-Decryptor::Decryptor(const string &private_key_pem, SecureBuffer &password)
+Decryptor::Decryptor(const string &private_key_pem, SecureBuffer password)
 {
     master_key = KeyTool::get_private_key(private_key_pem, password);
     key_type = EVP_PKEY_id(master_key.get());

@@ -12,7 +12,7 @@ public:
      * @param master_prikey_pem Path to PEM file that contains master private key
      * @param password Password used to encrypt private key
      */
-    Decryptor(const std::string &private_key_pem, SecureBuffer &password);
+    Decryptor(const std::string &private_key_pem, SecureBuffer password);
 
     ~Decryptor() override;
 

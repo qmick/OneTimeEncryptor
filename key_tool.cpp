@@ -97,12 +97,13 @@ SecureBuffer KeyTool::get_secret(const EVP_PKEY_ptr &pkey,
 }
 
 string KeyTool::get_private_key_pem(const EVP_PKEY_ptr &private_key,
-                                    SecureBuffer &password)
+                                    SecureBuffer password)
 {
     BIO_MEM_ptr bio(BIO_new(BIO_s_mem()), ::BIO_free);
 
-    if (!PEM_write_bio_PrivateKey(bio.get(), private_key.get(), EVP_aes_256_cbc(), password.get(),
-                              static_cast<int>(password.size()), NULL, NULL))
+    if (!PEM_write_bio_PKCS8PrivateKey(bio.get(), private_key.get(), EVP_aes_256_cbc(),
+                                       reinterpret_cast<char*>(password.get()),
+                                       static_cast<int>(password.size()), NULL, NULL))
         throw CryptoException();
     BUF_MEM *mem = NULL;
     BIO_get_mem_ptr(bio.get(), &mem);
@@ -129,7 +130,7 @@ string KeyTool::get_pubkey_pem(const EVP_PKEY_ptr &public_key)
 EVP_PKEY_ptr KeyTool::get_pubkey(const std::string &pem)
 {
     BIO_MEM_ptr bio(BIO_new(BIO_s_mem()), ::BIO_free);
-    BIO_write(bio.get(), pubkey_pem.c_str(), pubkey_pem.size());
+    BIO_write(bio.get(), pem.c_str(), pem.size());
 
     auto ret = PEM_read_bio_PUBKEY(bio.get(), NULL, 0, 0);
 
@@ -138,7 +139,7 @@ EVP_PKEY_ptr KeyTool::get_pubkey(const std::string &pem)
     return EVP_PKEY_ptr(ret, ::EVP_PKEY_free);
 }
 
-EVP_PKEY_ptr KeyTool::get_private_key(const std::string &pem, const SecureBuffer &password)
+EVP_PKEY_ptr KeyTool::get_private_key(const std::string &pem, SecureBuffer password)
 {
     BIO_MEM_ptr bio(BIO_new(BIO_s_mem()), ::BIO_free);
     BIO_write(bio.get(), pem.data(), pem.size());
@@ -147,7 +148,7 @@ EVP_PKEY_ptr KeyTool::get_private_key(const std::string &pem, const SecureBuffer
     if (!ret)
         throw CryptoException();
 
-    retur EVP_PKEY_ptr(ret, ::EVP_PKEY_free);;
+    return EVP_PKEY_ptr(ret, ::EVP_PKEY_free);;
 }
 
 vector<byte> KeyTool::get_digest(const std::string &content, const std::string &type)

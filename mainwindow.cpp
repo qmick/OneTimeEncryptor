@@ -17,6 +17,7 @@
 #include <QTime>
 #include <QDebug>
 #include <QDialogButtonBox>
+#include <QDir>
 
 
 using std::make_unique;
@@ -63,7 +64,7 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
     ui->tableView->setItemDelegate(progress_delegate.get());
     emit progress_model->layoutChanged();
 
-    user_manager = make_unique<UserManager>("./user.db");
+    user_manager = make_unique<UserManager>(QDir::homePath() + "/ote_user.db");
     //public_path = "./public.pem";
     //private_path = "./private.pem";
     auto_close = false;

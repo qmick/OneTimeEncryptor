@@ -28,10 +28,9 @@ public:
     explicit SecureBuffer(size_t n);
     SecureBuffer(const byte *other, size_t n);
     SecureBuffer(const std::string &str);
-    SecureBuffer(SecureBuffer &&other) noexcept;
+    SecureBuffer(const SecureBuffer &other);
     ~SecureBuffer();
-    SecureBuffer &operator=(const SecureBuffer &other) = delete;
-    SecureBuffer &operator=(SecureBuffer &&other) noexcept;
+    SecureBuffer &operator=(const SecureBuffer &other);
     byte &operator[](size_t n);
     const byte &operator[](size_t n) const;
 
