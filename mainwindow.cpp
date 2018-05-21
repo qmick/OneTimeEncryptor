@@ -89,6 +89,7 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
     connect(ui->action_Switch, SIGNAL(triggered()), this, SLOT(switch_user()));
     connect(ui->action_Delete, SIGNAL(triggered()), this, SLOT(delete_user()));
     connect(ui->user_comboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(update_digest(int)));
+    connect(ui->delete_checkBox, SIGNAL(stateChanged(int)), this, SLOT(auto_delete_checked(int)));
 
     ui->comboBox->addItems(kSupportedCipher);
 
@@ -97,7 +98,6 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
         user_manager->set_current_user(user_digest.begin().key());
     for (auto i = user_digest.constBegin(); i != user_digest.constEnd(); ++i)
         ui->user_comboBox->addItem(i.key(), i.value());
-
 
     switch (mode)
     {
@@ -374,6 +374,11 @@ void MainWindow::update_digest(int index)
     ui->digest_label->setText(digest.toUpper());
 }
 
+void MainWindow::auto_delete_checked(int state)
+{
+    auto_delete = state == Qt::Checked;
+}
+
 bool MainWindow::load_publickey(const QString &pubkey)
 {
     try
@@ -639,6 +644,11 @@ void MainWindow::current_finished(const QString &file)
     progress_model->mdata[no][ProgressTableModel::ROW_STATUS] = tr("Finished");
     progress_model->mdata[no][ProgressTableModel::ROW_PROGRESS] = QString::number(100);
     emit progress_model->layoutChanged();
+    if (auto_delete)
+    {
+        QFile current_file(file);
+        current_file.remove();
+    }
 }
 
 void MainWindow::job_finished()

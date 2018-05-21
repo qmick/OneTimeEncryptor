@@ -70,6 +70,9 @@ private:
     //
     QString current_cipher;
 
+    //
+    bool auto_delete;
+
     void setup_progress(const QStringList &files);
 
     bool load_publickey(const QString &pubkey);
@@ -96,6 +99,9 @@ public slots:
 
     //
     void update_digest(int index);
+
+    //Auto delete file
+    void auto_delete_checked(int state);
 
     //Reset password that used to encrypt private key
     void reset_password();
