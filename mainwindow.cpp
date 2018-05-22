@@ -400,7 +400,7 @@ bool MainWindow::load_publickey(const QString &pubkey)
 
         default:
             encryptor = nullptr;
-            QMessageBox::critical(this, "Error", tr("Unsupported Key type"), QMessageBox::Abort);
+            QMessageBox::critical(this, tr("Error"), tr("Unsupported Key type"), QMessageBox::Abort);
             return false;
         }
         if (!msg_cryptor)
@@ -410,7 +410,7 @@ bool MainWindow::load_publickey(const QString &pubkey)
     }
     catch (const std::exception &e)
     {
-        QMessageBox::warning(this, "Warning",
+        QMessageBox::warning(this, tr("Warning"),
                              tr("Cannot load public key: ") + e.what(),
                              QMessageBox::Abort);
         public_label.setText("");
@@ -446,7 +446,7 @@ bool MainWindow::load_privatekey(const QString &private_key, SecureBuffer &passw
 
         default:
             decryptor = nullptr;
-            QMessageBox::critical(this, "Error", tr("Unsupported Key type"), QMessageBox::Abort);
+            QMessageBox::critical(this, tr("Error"), tr("Unsupported Key type"), QMessageBox::Abort);
             return false;
         }
         if (!msg_cryptor)
@@ -457,7 +457,7 @@ bool MainWindow::load_privatekey(const QString &private_key, SecureBuffer &passw
     }
     catch (const std::exception &e)
     {
-        QMessageBox::warning(this, "Warning",
+        QMessageBox::warning(this, tr("Warning"),
                              tr("cannot open private pem file: ") + e.what(),
                              QMessageBox::Abort);
         private_label.setText("");
@@ -577,7 +577,7 @@ void MainWindow::encrypt_msg(const QString &msg)
     }
     catch (std::exception e)
     {
-        QMessageBox::critical(this, "Error", e.what(), QMessageBox::Ok);
+        QMessageBox::critical(this, tr("Error"), e.what(), QMessageBox::Ok);
         return;
     }
     qbytes = QByteArray::fromRawData(reinterpret_cast<const char*>(out.data()), out.size());
@@ -595,7 +595,7 @@ void MainWindow::decrypt_msg(const QString &cipher)
     }
     catch (std::exception e)
     {
-        QMessageBox::critical(this, "Error", e.what(), QMessageBox::Ok);
+        QMessageBox::critical(this, tr("Error"), e.what(), QMessageBox::Ok);
         return;
     }
     QString text = QString::fromLocal8Bit(reinterpret_cast<const char*>(out.data()), out.size());
