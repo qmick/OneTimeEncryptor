@@ -1,10 +1,14 @@
 #include "mainwindow.h"
 #include <cstdio>
 #include <QApplication>
+#include <QTranslator>
 
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
+    QTranslator translator;
+    translator.load("mainwindow_zh");
+    a.installTranslator(&translator);
     MainWindow::Mode m = MainWindow::ALL;
     QStringList files;
 

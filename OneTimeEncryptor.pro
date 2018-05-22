@@ -69,6 +69,8 @@ FORMS += \
         mainwindow.ui \
     dialog.ui
 
+TRANSLATIONS += mainwindow_zh.ts
+
 win32:{
     INCLUDEPATH += C:/OpenSSL-Win32/include
     LIBS += -LC:/OpenSSL-Win32/lib/VC
@@ -81,3 +83,5 @@ unix:{
     LIBS += -lcrypto -lssl -ldl
     QMAKE_CXXFLAGS += -std=c++1y
 }
+
+DISTFILES +=
