@@ -74,7 +74,7 @@ std::vector<byte> MsgCryptor::encrypt(const std::vector<byte> &in, const std::st
     }
     else //if (key_type == EVP_PKEY_EC || key_type == NID_X25519)
     {
-        throw CryptoException();
+        throw std::runtime_error("Not supported key type");
     }
 }
 
