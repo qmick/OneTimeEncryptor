@@ -72,6 +72,7 @@ FORMS += \
 win32:{
     INCLUDEPATH += C:/OpenSSL-Win32/include
     LIBS += -LC:/OpenSSL-Win32/lib/VC
+    LIBS += AdvAPI32.Lib
     Release:LIBS += libcrypto32MD.lib libssl32MD.lib
     Debug:LIBS += libcrypto32MDd.lib libssl32MDd.lib
 }

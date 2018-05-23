@@ -105,6 +105,10 @@
     <addaction name="action_Encrypt"/>
     <addaction name="action_Decrypt"/>
     <addaction name="separator"/>
+    <addaction name="separator"/>
+    <addaction name="action_register"/>
+    <addaction name="action_unregister"/>
+    <addaction name="separator"/>
     <addaction name="actionE_xit"/>
    </widget>
    <widget class="QMenu" name="menu_About">
@@ -221,6 +225,22 @@
   <action name="action_Delete">
    <property name="text">
     <string>&amp;Delete</string>
+   </property>
+  </action>
+  <action name="action_register">
+   <property name="text">
+    <string>&amp;Register</string>
+   </property>
+   <property name="visible">
+    <bool>false</bool>
+   </property>
+  </action>
+  <action name="action_unregister">
+   <property name="text">
+    <string>&amp;Unregister</string>
+   </property>
+   <property name="visible">
+    <bool>false</bool>
    </property>
   </action>
  </widget>
