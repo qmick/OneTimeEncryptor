@@ -26,7 +26,9 @@ int main(int argc, char *argv[])
         if (argc > 2)
         {
             for (int i = 2; i < argc; i++)
-                files.append(argv[i]);
+            {
+                files.append(QString::fromLocal8Bit(argv[i]));
+            }
         }
     }
     MainWindow w(m, files);
