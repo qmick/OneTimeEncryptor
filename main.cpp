@@ -9,8 +9,11 @@ int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
     QTranslator translator;
-    translator.load("mainwindow_zh");
-    a.installTranslator(&translator);
+    if (translator.load("mainwindow_zh"))
+    {
+        qDebug() << "custom translator ok";
+        a.installTranslator(&translator);
+    }
 
     QTranslator qtTranslator;
     if (qtTranslator.load(QLocale::system(),
