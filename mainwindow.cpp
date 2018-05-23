@@ -131,7 +131,12 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
     if (user_digest.size() != 0)
         user_manager->set_current_user(user_digest.begin().key());
     for (auto i = user_digest.constBegin(); i != user_digest.constEnd(); ++i)
-        ui->user_comboBox->addItem(i.key(), i.value());
+    {
+        std::vector<byte> digest_bytes = KeyTool::get_digest(user_manager->get_pubkey(i.key()).toStdString(), "SHA256");
+        QString digest = QString::fromUtf8(QByteArray::fromRawData(reinterpret_cast<const char*>(digest_bytes.data()),
+                                                                digest_bytes.size()).toHex());
+        ui->user_comboBox->addItem(i.key(), digest);
+    }
 
     switch (mode)
     {
@@ -258,9 +263,6 @@ void MainWindow::generate_keypair(MainWindow::KeyType type)
 
             QString pubkey = QString::fromStdString(KeyTool::get_pubkey_pem(key_pair));
             QString private_key = QString::fromStdString(KeyTool::get_private_key_pem(key_pair, password));
-
-            user_manager->set_key(pubkey, private_key);
-
             load_publickey(pubkey);
             load_privatekey(private_key, password);
         }
@@ -343,9 +345,7 @@ void MainWindow::add_user()
         user.pubkey = QString::fromStdString(KeyTool::get_pubkey_pem(key_pair));
         SecureBuffer password(password_edit.text().toStdString());
         user.private_key = QString::fromStdString(KeyTool::get_private_key_pem(key_pair, password));
-        std::vector<byte> digest = KeyTool::get_digest(user.pubkey.toStdString(), "SHA256");
-        user.digest = QString::fromUtf8(QByteArray::fromRawData(reinterpret_cast<const char*>(digest.data()),
-                                                                digest.size()).toHex());
+
         user_manager->add_user(user);
         ui->user_comboBox->addItem(user.name, user.digest);
         ui->user_comboBox->setCurrentText(user.name);
@@ -440,6 +440,12 @@ bool MainWindow::load_publickey(const QString &pubkey)
         if (!msg_cryptor)
             msg_cryptor = make_unique<MsgCryptor>();
         msg_cryptor->set_pubkey(key);
+
+        std::vector<byte> digest_bytes = KeyTool::get_digest(pubkey.toStdString(), "SHA256");
+        QString digest = QString::fromUtf8(QByteArray::fromRawData(reinterpret_cast<const char*>(digest_bytes.data()),
+                                                                digest_bytes.size()).toHex());
+        ui->user_comboBox->setItemData(ui->user_comboBox->currentIndex(), digest);
+        emit ui->user_comboBox->currentIndexChanged(ui->user_comboBox->currentIndex());
         return true;
     }
     catch (const std::exception &e)
@@ -448,9 +454,8 @@ bool MainWindow::load_publickey(const QString &pubkey)
                              tr("Cannot load public key: ") + e.what(),
                              QMessageBox::Abort);
         public_label.setText("");
+        return false;
     }
-
-    return false;
 }
 
 bool MainWindow::load_privatekey(const QString &private_key, SecureBuffer &password)
@@ -495,9 +500,8 @@ bool MainWindow::load_privatekey(const QString &private_key, SecureBuffer &passw
                              tr("cannot open private pem file: ") + e.what(),
                              QMessageBox::Abort);
         private_label.setText("");
+        return false;
     }
-
-    return false;
 }
 
 void MainWindow::reset_password()
