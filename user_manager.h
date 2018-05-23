@@ -38,8 +38,8 @@ public:
     void set_pubkey(const QString &pubkey);
     void set_private_key(const QString &username, const QString &private_key);
     void set_private_key(const QString &private_key);
-    void set_key(const QString &username, const QString &pubkey, const QString &private_key, const QString &digest);
-    void set_key(const QString &pubkey, const QString &private_key, const QString &digest);
+    void set_key(const QString &username, const QString &pubkey, const QString &private_key);
+    void set_key(const QString &pubkey, const QString &private_key);
     int get_key_type(const QString &username) const;
     int get_key_type() const;
     void add_user(const User &user);
