@@ -703,7 +703,7 @@ void MainWindow::file_stopped(const QString &file)
 
     timer.stop();
     time_record.setHMS(0, 0, 0);
-
+    auto_close = false;
     progress_model->mdata[no][ProgressTableModel::ROW_STATUS] = tr("Stopped");
     emit progress_model->layoutChanged();
 }
