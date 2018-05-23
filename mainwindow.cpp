@@ -610,9 +610,9 @@ void MainWindow::on_register_clicked()
     QSettings reg_decrypt(QString("HKEY_CLASSES_ROOT\\*\\shell\\") +
                           context_decrypt + "\\command", QSettings::NativeFormat);
     reg_encrypt.setValue(".", QString("\"") +
-                         QDir::toNativeSeparators(QCoreApplication::applicationFilePath()) + "\" enc %1");
+                         QDir::toNativeSeparators(QCoreApplication::applicationFilePath()) + "\" enc \"%1\"");
     reg_decrypt.setValue(".", QString("\"") +
-                         QDir::toNativeSeparators(QCoreApplication::applicationFilePath()) + "\" dec %1");
+                         QDir::toNativeSeparators(QCoreApplication::applicationFilePath()) + "\" dec \"%1\"");
 }
 
 void MainWindow::on_unregister_clicked()
@@ -693,6 +693,7 @@ void MainWindow::file_failed(const QString &file, const QString &reason)
     count++;
     progress_model->mdata[no][ProgressTableModel::ROW_STATUS] = tr("Failed");
     progress_model->mdata[no][ProgressTableModel::ROW_REASON] = reason;
+    auto_close = false;
     emit progress_model->layoutChanged();
 }
 
