@@ -19,6 +19,33 @@
 #include <QDialogButtonBox>
 #include <QDir>
 
+#ifdef Q_OS_WIN
+
+#include <QSettings>
+#include <QCoreApplication>
+#include <Windows.h>
+
+/* Test if current process is running as admin
+ * code from https://stackoverflow.com/questions/8046097/
+ * how-to-check-if-a-process-has-the-administrative-rights/8196291#8196291
+*/
+BOOL IsElevated() {
+    BOOL fRet = FALSE;
+    HANDLE hToken = NULL;
+    if(OpenProcessToken(GetCurrentProcess(),TOKEN_QUERY,&hToken)) {
+        TOKEN_ELEVATION Elevation;
+        DWORD cbSize = sizeof(TOKEN_ELEVATION);
+        if(GetTokenInformation(hToken, TokenElevation, &Elevation, sizeof(Elevation), &cbSize)) {
+            fRet = Elevation.TokenIsElevated;
+        }
+    }
+    if(hToken) {
+        CloseHandle(hToken);
+    }
+    return fRet;
+}
+
+#endif
 
 using std::make_unique;
 using std::make_shared;
@@ -90,6 +117,13 @@ MainWindow::MainWindow(const Mode &mode, const QStringList &files, QWidget *pare
     connect(ui->action_Delete, SIGNAL(triggered()), this, SLOT(delete_user()));
     connect(ui->user_comboBox, SIGNAL(currentIndexChanged(int)), this, SLOT(update_digest(int)));
     connect(ui->delete_checkBox, SIGNAL(stateChanged(int)), this, SLOT(auto_delete_checked(int)));
+
+#ifdef Q_OS_WIN
+    ui->action_register->setVisible(true);
+    ui->action_unregister->setVisible(true);
+    connect(ui->action_register, SIGNAL(triggered()), this, SLOT(on_register_clicked()));
+    connect(ui->action_unregister, SIGNAL(triggered()), this, SLOT(on_unregister_clicked()));
+#endif
 
     ui->comboBox->addItems(kSupportedCipher);
 
@@ -555,6 +589,44 @@ void MainWindow::decrypt_clicked()
         setup_thread(); 
     }
 }
+
+#ifdef Q_OS_WIN
+void MainWindow::on_register_clicked()
+{
+    if (IsElevated() == FALSE)
+    {
+        QMessageBox::critical(this, tr("Error"), tr("Not running as admin, can't register"),
+                              QMessageBox::Abort);
+        return;
+    }
+    const QString context_encrypt = tr("EncryptFile");
+    const QString context_decrypt = tr("DecryptFile");
+    QSettings reg_encrypt(QString("HKEY_CLASSES_ROOT\\*\\shell\\") +
+                          context_encrypt + "\\command", QSettings::NativeFormat);
+    QSettings reg_decrypt(QString("HKEY_CLASSES_ROOT\\*\\shell\\") +
+                          context_decrypt + "\\command", QSettings::NativeFormat);
+    reg_encrypt.setValue(".", QString("\"") +
+                         QDir::toNativeSeparators(QCoreApplication::applicationFilePath()) + "\" enc %1");
+    reg_decrypt.setValue(".", QString("\"") +
+                         QDir::toNativeSeparators(QCoreApplication::applicationFilePath()) + "\" dec %1");
+}
+
+void MainWindow::on_unregister_clicked()
+{
+    if (IsElevated() == FALSE)
+    {
+        QMessageBox::critical(this, tr("Error"), tr("Not running as admin, can't unregister"),
+                              QMessageBox::Abort);
+        return;
+    }
+    const QString context_encrypt = tr("EncryptFile");
+    const QString context_decrypt = tr("DecryptFile");
+    QSettings reg_encrypt(QString("HKEY_CLASSES_ROOT\\*\\shell"), QSettings::NativeFormat);
+    QSettings reg_decrypt(QString("HKEY_CLASSES_ROOT\\*\\shell"), QSettings::NativeFormat);
+    reg_encrypt.remove(context_encrypt);
+    reg_decrypt.remove(context_decrypt);
+}
+#endif
 
 void MainWindow::encrypt_msg_clicked()
 {

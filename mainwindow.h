@@ -117,6 +117,12 @@ public slots:
     void encrypt_clicked();
     void decrypt_clicked();
 
+#ifdef Q_OS_WIN
+    //
+    void on_register_clicked();
+    void on_unregister_clicked();
+#endif
+
     //
     void encrypt_msg_clicked();
     void decrypt_msg_clicked();
