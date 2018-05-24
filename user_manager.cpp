@@ -11,7 +11,7 @@ UserManager::UserManager(const QString &db_path)
     db = std::make_unique<sqlite::DB>(db_path.toStdString());
     std::string sql = "CREATE TABLE IF NOT EXISTS user("
                       "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                      "name TEXT NOT NULL, pubkey TEXT, private_key TEXT, digest TEXT,"
+                      "name TEXT NOT NULL UNIQUE, pubkey TEXT, private_key TEXT, digest TEXT,"
                       "Timestamp DATETIME DEFAULT CURRENT_TIMESTAMP);";
     db->update(sql);
 }

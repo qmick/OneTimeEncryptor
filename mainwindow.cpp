@@ -343,6 +343,12 @@ void MainWindow::add_user()
     // Show the dialog as modal
     if (dialog.exec() == QDialog::Accepted)
     {
+        if (username_edit.text().isEmpty() || password_edit.text().isEmpty())
+        {
+            QMessageBox::critical(this, tr("Error"),
+                                  tr("username and password can't be empty"), QMessageBox::Ok);
+            return;
+        }
         User user;
         user.name = username_edit.text();
         EVP_PKEY_ptr key_pair = KeyTool::get_key_pair(key_box.currentText().toStdString());
@@ -350,7 +356,16 @@ void MainWindow::add_user()
         SecureBuffer password(password_edit.text().toStdString());
         user.private_key = QString::fromStdString(KeyTool::get_private_key_pem(key_pair, password));
 
-        user_manager->add_user(user);
+        try
+        {
+            user_manager->add_user(user);
+        }
+        catch (std::exception &e)
+        {
+            QMessageBox::critical(this, tr("Error"), tr("Duplicated username"), QMessageBox::Ok);
+            return;
+        }
+
         ui->user_comboBox->addItem(user.name, user.digest);
         ui->user_comboBox->setCurrentText(user.name);
         switch_user();
@@ -396,7 +411,7 @@ void MainWindow::delete_user()
     catch (std::exception e)
     {
         QMessageBox::critical(this, tr("Error"), tr("Uable to delete user: ") +
-                              tr(e.what()), QMessageBox::Abort);
+                              tr("password not correct"), QMessageBox::Abort);
         return;
     }
 }
@@ -498,10 +513,18 @@ bool MainWindow::load_privatekey(const QString &private_key, SecureBuffer &passw
 
         return true;
     }
+    catch (const CryptoException &e)
+    {
+        QMessageBox::critical(this, tr("Error"),
+                             tr("cannot load private key: password not correct"),
+                             QMessageBox::Abort);
+        private_label.setText("");
+        return false;
+    }
     catch (const std::exception &e)
     {
         QMessageBox::warning(this, tr("Warning"),
-                             tr("cannot open private pem file: ") + e.what(),
+                             tr("cannot load private key: ") + e.what(),
                              QMessageBox::Abort);
         private_label.setText("");
         return false;
@@ -536,6 +559,8 @@ void MainWindow::reset_password()
                               tr("Cannot reset password: ") + e.what(),
                               QMessageBox::Abort);
     }
+    QMessageBox::information(this, tr("Information"),
+                             tr("Reset password successfully"), QMessageBox::Ok);
 }
 
 void MainWindow::update_time()
@@ -638,11 +663,33 @@ void MainWindow::on_unregister_clicked()
 
 void MainWindow::encrypt_msg_clicked()
 {
+    if (!msg_cryptor || !encryptor)
+    {
+        QMessageBox::critical(this, tr("Error"), tr("public key not loaded"), QMessageBox::Ok);
+        return;
+    }
+    auto nid = EVP_PKEY_id(encryptor->get_key().get());
+    if (nid != EVP_PKEY_RSA)
+    {
+        QMessageBox::critical(this, tr("Error"), tr("key type not supported"), QMessageBox::Ok);
+        return;
+    }
     encrypt_dialog.show();
 }
 
 void MainWindow::decrypt_msg_clicked()
 {
+    if (!msg_cryptor || !decryptor)
+    {
+        QMessageBox::critical(this, tr("Error"), tr("private key not loaded"), QMessageBox::Ok);
+        return;
+    }
+    auto nid = EVP_PKEY_id(decryptor->get_key().get());
+    if (nid != EVP_PKEY_RSA)
+    {
+        QMessageBox::critical(this, tr("Error"), tr("key type not supported"), QMessageBox::Ok);
+        return;
+    }
     encrypt_dialog.show();
 }
 
@@ -655,9 +702,9 @@ void MainWindow::encrypt_msg(const QString &msg)
     {
         out = msg_cryptor->encrypt(in, current_cipher.toStdString());
     }
-    catch (std::exception e)
+    catch (std::exception &e)
     {
-        QMessageBox::critical(this, tr("Error"), e.what(), QMessageBox::Ok);
+        QMessageBox::critical(this, tr("Error"), tr("public key not loaded"), QMessageBox::Ok);
         return;
     }
     qbytes = QByteArray::fromRawData(reinterpret_cast<const char*>(out.data()), out.size());
@@ -673,9 +720,14 @@ void MainWindow::decrypt_msg(const QString &cipher)
     {
         out = msg_cryptor->decrypt(in);
     }
-    catch (std::exception e)
+    catch (CryptoException &e)
     {
-        QMessageBox::critical(this, tr("Error"), e.what(), QMessageBox::Ok);
+        QMessageBox::critical(this, tr("Error"), tr("password not correct or message corrupted"), QMessageBox::Ok);
+        return;
+    }
+    catch (std::exception &e)
+    {
+        QMessageBox::critical(this, tr("Error"), tr("private key not loaded"), QMessageBox::Ok);
         return;
     }
     QString text = QString::fromLocal8Bit(reinterpret_cast<const char*>(out.data()), out.size());
@@ -696,7 +748,7 @@ void MainWindow::file_failed(const QString &file, const QString &reason)
     auto no = file_no[file];
     count++;
     progress_model->mdata[no][ProgressTableModel::ROW_STATUS] = tr("Failed");
-    progress_model->mdata[no][ProgressTableModel::ROW_REASON] = reason;
+    progress_model->mdata[no][ProgressTableModel::ROW_REASON] = tr("Password not correct or file corrupted");
     auto_close = false;
     emit progress_model->layoutChanged();
 }

@@ -23,7 +23,7 @@ void MsgCryptor::set_private_key(EVP_PKEY_ptr &key)
 std::vector<byte> MsgCryptor::encrypt(const std::vector<byte> &in, const std::string &cipher_name)
 {
     if (!pubkey)
-        throw std::runtime_error("Public key not set");
+        throw std::runtime_error("public key not set");
     if (in.size() < 1)
         return std::vector<byte>();
     auto cipher = EVP_get_cipherbyname(cipher_name.c_str());
@@ -74,14 +74,14 @@ std::vector<byte> MsgCryptor::encrypt(const std::vector<byte> &in, const std::st
     }
     else //if (key_type == EVP_PKEY_EC || key_type == NID_X25519)
     {
-        throw std::runtime_error("Not supported key type");
+        throw std::invalid_argument("key type not supported");
     }
 }
 
 std::vector<byte> MsgCryptor::decrypt(const std::vector<byte> &in)
 {
     if (!private_key)
-        throw std::runtime_error("Private key not set");
+        throw std::runtime_error("private key not set");
     if (in.size() < sizeof(int32_t))
         throw std::runtime_error("Not cipher message");
     size_t ptr = 0;
@@ -127,6 +127,6 @@ std::vector<byte> MsgCryptor::decrypt(const std::vector<byte> &in)
     }
     else //if (key_type == EVP_PKEY_EC || key_type == NID_X25519)
     {
-        throw CryptoException();
+        throw std::invalid_argument("key type not supported");
     }
 }
