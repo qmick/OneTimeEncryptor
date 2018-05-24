@@ -240,6 +240,11 @@ void MainWindow::setup_thread()
 
 void MainWindow::generate_keypair(MainWindow::KeyType type)
 {
+    if (!decryptor)
+    {
+        QMessageBox::critical(this, tr("Error"), tr("Private key not loaded"), QMessageBox::Abort);
+        return;
+    }
     bool ok;
     QString text = QInputDialog::getText(this, tr("Input password"),
                                          tr("Password:"), QLineEdit::Password,
@@ -265,17 +270,16 @@ void MainWindow::generate_keypair(MainWindow::KeyType type)
             QString private_key = QString::fromStdString(KeyTool::get_private_key_pem(key_pair, password));
             load_publickey(pubkey);
             load_privatekey(private_key, password);
+            user_manager->set_key(pubkey, private_key);
         }
         catch (std::exception &e)
         {
             QMessageBox::critical(this, tr("Error"),
                                   tr("Cannot generate key: ") + e.what(),
                                   QMessageBox::Abort);
-            return;
         }
     }
 }
-
 
 bool MainWindow::load_publickey_clicked()
 {

@@ -170,13 +170,13 @@ void UserManager::set_private_key(const QString &private_key)
     set_private_key(current_user, private_key);
 }
 
-void UserManager::set_key(const QString &username, const QString &pubkey, const QString &private_key, const QString &digest)
+void UserManager::set_key(const QString &username, const QString &pubkey, const QString &private_key)
 {
-    std::string sql = "UPDATE user SET pubkey=?,private_key=?,digest=? WHERE name=?";
-    db->update(sql, pubkey.toStdString(), private_key.toStdString(), username.toStdString(), digest.toStdString());
+    std::string sql = "UPDATE user SET pubkey=?,private_key=? WHERE name=?";
+    db->update(sql, pubkey.toStdString(), private_key.toStdString(), username.toStdString());
 }
 
-void UserManager::set_key(const QString &pubkey, const QString &private_key, const QString &digest)
+void UserManager::set_key(const QString &pubkey, const QString &private_key)
 {
     if (current_user.isEmpty())
         throw runtime_error("No user available");
